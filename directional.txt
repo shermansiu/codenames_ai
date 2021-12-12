@@ -1,0 +1,10 @@
+top
+bottom
+up
+down
+left
+right
+north
+south
+east
+west
