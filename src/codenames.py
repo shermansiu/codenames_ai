@@ -4,10 +4,13 @@ import attr
 import typing as tp
 import nptyping as npt
 import abc
-import os
 
 
-PathLike = tp.Union[str, os.PathLike[str]]
+if tp.TYPE_CHECKING:
+    import os  # noqa
+
+
+PathLike = tp.Union[str, "os.PathLike[str]"]
 
 
 rng = np.random.default_rng()
@@ -268,6 +271,7 @@ class GloveGuesser:
             "mean": self.generate_word_suggestions_mean,
             "minimax": self.generate_word_suggestions_minimax,
         }
+        self.board_vectors = self.glove.vectorize(self.board.words)
 
     def indices_illegal_words(self, chosen_words: npt.NDArray):
         return self.board.batch_is_illegal(chosen_words)
@@ -358,14 +362,19 @@ class GloveGuesser:
             limit = min(hint.count - hint.num_guessed, num_words_remaining)
         return hint.word, limit
 
+    def remaining_word_vectors(self) -> npt.NDArray:
+        return self.board_vectors[~self.board.chosen]
+
     def guess(self, hint: Hint, strategy: str = "greedy") -> tp.Sequence[str]:
         word, limit = self.choose_hint_parameters(hint)
         if not self.glove.is_valid_token(word):
             raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(word)
         remaining_words = self.board.remaining_words()
-        board_vectors = self.glove.vectorize(remaining_words)
-        similarity_scores = batched_cosine_similarity(word_vector, board_vectors)[0]
+        remaining_word_vectors = self.remaining_word_vectors()
+        similarity_scores = batched_cosine_similarity(
+            word_vector, remaining_word_vectors
+        )[0]
         indices = np.argpartition(-similarity_scores, limit)
         chosen_words = remaining_words[indices][:limit]
         similarity_scores = similarity_scores[indices][:limit]
