@@ -1,7 +1,6 @@
 import numpy as np
 import pathlib
 import attr
-from typing import List, Sequence, Optional, Set, Tuple
 import typing as tp
 import nptyping as npt
 import abc
@@ -12,7 +11,7 @@ labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
 unique_labels = np.unique(labels).tolist()
 
 
-def regularize(list_of_tokens: List[str]) -> List[str]:
+def regularize(list_of_tokens: tp.Iterable[str]) -> tp.List[str]:
     """Regularize the tokens."""
     return [token.strip().upper() for token in list_of_tokens]
 
@@ -22,8 +21,8 @@ class WordList:
     def __init__(
         self,
         wordlist_path: str,
-        illegals_paths: Optional[List[str]] = None,
-        allowed_paths: Optional[List[str]] = None,
+        illegals_paths: tp.Optional[tp.List[str]] = None,
+        allowed_paths: tp.Optional[tp.List[str]] = None,
     ):
         path = pathlib.Path(wordlist_path)
         with path.open() as f:
@@ -33,7 +32,7 @@ class WordList:
         # If it is illegal for the board, it will be detected later on
         self.allowed.update(self.words)
 
-    def load_texts(self, paths: List[str]) -> Set[str]:
+    def load_texts(self, paths: tp.List[str]) -> tp.Set[str]:
         texts = set()
         for pth in paths:
             path = pathlib.Path(pth)
@@ -51,7 +50,7 @@ class Board:
         self.wordlist = wordlist
         self.words = rng.choice(wordlist.words, 25, replace=False)
         self.word2index = {word: i for i, word in enumerate(self.words)}
-        self.labels = rng.permutation(labels)
+        self.labels: tp.List[str] = rng.permutation(labels)
         self.reset_game()
 
     def is_related_word(self, word: str) -> bool:
@@ -89,20 +88,20 @@ class Board:
 
     @property
     def blue_words(self):
-        return words_that_are_label("BLUE")
+        return self.words_that_are_label("BLUE")
 
     @property
     def red_words(self):
-        return words_that_are_label("RED")
+        return self.words_that_are_label("RED")
 
     @property
     def bystander_words(self):
-        return words_that_are_label("BYSTANDER")
+        return self.words_that_are_label("BYSTANDER")
 
     @property
     def assassin_words(self):
         """There is only one assassin in a regular game, but for the sake of generality, here we go!"""
-        return words_that_are_label("ASSASSIN")
+        return self.words_that_are_label("ASSASSIN")
 
     def indices_for_label(self, label):
         return np.where(self.labels == label)[0]
@@ -143,7 +142,7 @@ class Board:
         self.chosen[chosen_indices] = True
         self.which_team_guessing = rng.choice(["BLUE", "RED"])
 
-    def bag_state(self) -> tp.Dict["label", tp.Set["words"]]:
+    def bag_state(self) -> tp.Dict[str, tp.Set[str]]:
         return {
             label: set(self.words[(self.labels == label) & ~self.chosen])
             for label in unique_labels
@@ -151,6 +150,9 @@ class Board:
 
     def remaining_words(self) -> npt.NDArray[str]:
         return self.words[~self.chosen]
+
+    def remaining_words_for_team(self, team: str) -> int:
+        return (~self.chosen & (self.labels == team)).sum()
 
 
 class CliView:
@@ -192,8 +194,8 @@ class CliView:
 @attr.s(frozen=True, auto_attribs=True)
 class Hint:
     word: str
-    count: Optional[int]
-    remaining: int = attr.ib(default=0)
+    count: tp.Optional[int]
+    num_guessed: int = attr.ib(default=0)
 
 
 class TextVectorEngine(metaclass=abc.ABCMeta):
@@ -245,7 +247,7 @@ def batched_norm(vec: np.ndarray) -> np.ndarray:
     return vec / np.linalg.norm(vec, axis=1)[:, None]
 
 
-def batched_cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+def batched_cosine_similarity(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
     """Take the batched cosine similarity."""
     a_norm = batched_norm(a)  # (batch1, dim)
     b_norm = batched_norm(b)  # (batch2, dim)
@@ -266,30 +268,30 @@ class GloveGuesser:
         return self.board.batch_is_illegal(chosen_words)
 
     def generate_word_suggestions_mean(
-        self, words: List[str], limit: int = 10
-    ) -> Tuple[Sequence[str], Sequence[float]]:
+        self, words: tp.List[str], limit: int = 10
+    ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         for word in words:
             if not self.glove.is_valid_token(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-        similarity_scores = batched_cosine_similarity(word_vector, glove.vectors)[0]
+        similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors)[0]
         indices = np.argpartition(-similarity_scores, limit)
-        chosen_words = glove.tokens[indices][:limit]
+        chosen_words = self.glove.tokens[indices][:limit]
         similarity_scores = similarity_scores[indices][:limit]
         return chosen_words, similarity_scores
 
     def generate_word_suggestions_minimax(
-        self, words: List[str], limit: int = 10
-    ) -> Tuple[Sequence[str], Sequence[float]]:
+        self, words: tp.List[str], limit: int = 10
+    ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         for word in words:
             if not self.glove.is_valid_token(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(" ".join(words))
-        similarity_scores = batched_cosine_similarity(word_vector, glove.vectors).min(
+        similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors).min(
             axis=0
         )
         indices = np.argpartition(-similarity_scores, limit)
-        chosen_words = glove.tokens[indices][:limit]
+        chosen_words = self.glove.tokens[indices][:limit]
         similarity_scores = similarity_scores[indices][:limit]
         return chosen_words, similarity_scores
 
@@ -316,7 +318,7 @@ class GloveGuesser:
         return chosen_words, similarity_scores
 
     def give_hint_candidates(
-        self, targets: List[str], similarity_threshold=0.0, strategy: str = "minimax"
+        self, targets: tp.List[str], similarity_threshold=0.0, strategy: str = "minimax"
     ):
         generate_word_suggestions = self.strategy_lookup[strategy]
         chosen_words, similarity_scores = generate_word_suggestions(
@@ -330,7 +332,7 @@ class GloveGuesser:
         return self.re_rank(chosen_words, similarity_scores, self.limit)
 
     def give_hint(
-        self, targets: List[str], similarity_threshold=0.0, strategy: str = "minimax"
+        self, targets: tp.List[str], similarity_threshold=0.0, strategy: str = "minimax"
     ):
         """Greedily choose the best hint."""
         chosen_words, _ = self.give_hint_candidates(
@@ -340,9 +342,14 @@ class GloveGuesser:
 
     def choose_hint_parameters(self, hint: Hint) -> tp.Tuple[str, int]:
         """TODO: Add strategy mixins"""
-        return hint.word, hint.count - hint.remaining
+        num_words_remaining = self.board.remaining_words_for_team(self.board.which_team_guessing)
+        if hint.count is None:
+            limit = num_words_remaining
+        else:
+            limit = min(hint.count - hint.num_guessed, num_words_remaining)
+        return hint.word, limit
 
-    def guess(self, hint: Hint, strategy: str = "greedy") -> Sequence[str]:
+    def guess(self, hint: Hint, strategy: str = "greedy") -> tp.Sequence[str]:
         word, limit = self.choose_hint_parameters(hint)
         if not self.glove.is_valid_token(word):
             raise ValueError(f"Hint {word} is not a valid hint word!")
