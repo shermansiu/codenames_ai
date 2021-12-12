@@ -4,6 +4,10 @@ import attr
 import typing as tp
 import nptyping as npt
 import abc
+import os
+
+
+PathLike = tp.Union[str, os.PathLike[str]]
 
 
 rng = np.random.default_rng()
@@ -18,11 +22,12 @@ def regularize(list_of_tokens: tp.Iterable[str]) -> tp.List[str]:
 
 class WordList:
     """The list of words."""
+
     def __init__(
         self,
-        wordlist_path: str,
-        illegals_paths: tp.Optional[tp.List[str]] = None,
-        allowed_paths: tp.Optional[tp.List[str]] = None,
+        wordlist_path: PathLike,
+        illegals_paths: tp.Optional[tp.List[PathLike]] = None,
+        allowed_paths: tp.Optional[tp.List[PathLike]] = None,
     ):
         path = pathlib.Path(wordlist_path)
         with path.open() as f:
@@ -32,7 +37,7 @@ class WordList:
         # If it is illegal for the board, it will be detected later on
         self.allowed.update(self.words)
 
-    def load_texts(self, paths: tp.List[str]) -> tp.Set[str]:
+    def load_texts(self, paths: tp.List[PathLike]) -> tp.Set[str]:
         texts = set()
         for pth in paths:
             path = pathlib.Path(pth)
@@ -274,7 +279,9 @@ class GloveGuesser:
             if not self.glove.is_valid_token(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-        similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors)[0]
+        similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors)[
+            0
+        ]
         indices = np.argpartition(-similarity_scores, limit)
         chosen_words = self.glove.tokens[indices][:limit]
         similarity_scores = similarity_scores[indices][:limit]
@@ -287,9 +294,9 @@ class GloveGuesser:
             if not self.glove.is_valid_token(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(" ".join(words))
-        similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors).min(
-            axis=0
-        )
+        similarity_scores = batched_cosine_similarity(
+            word_vector, self.glove.vectors
+        ).min(axis=0)
         indices = np.argpartition(-similarity_scores, limit)
         chosen_words = self.glove.tokens[indices][:limit]
         similarity_scores = similarity_scores[indices][:limit]
@@ -342,7 +349,9 @@ class GloveGuesser:
 
     def choose_hint_parameters(self, hint: Hint) -> tp.Tuple[str, int]:
         """TODO: Add strategy mixins"""
-        num_words_remaining = self.board.remaining_words_for_team(self.board.which_team_guessing)
+        num_words_remaining = self.board.remaining_words_for_team(
+            self.board.which_team_guessing
+        )
         if hint.count is None:
             limit = num_words_remaining
         else:
