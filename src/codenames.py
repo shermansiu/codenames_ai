@@ -16,6 +16,7 @@ PathLike = tp.Union[str, "os.PathLike[str]"]
 
 rng = np.random.default_rng()
 labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
+bot_labels = np.array(["OURS", "THEIRS", "BYSTANDER", "ASSASSSIN"])
 valid_teams = {"BLUE", "RED"}
 unique_labels = np.unique(labels).tolist()
 
@@ -32,6 +33,19 @@ def find_x_in_y(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
     sorted_index = np.searchsorted(sorted_x, y)
     y_index = np.take(index, sorted_index, mode="clip")
     return y_index[x[y_index] == y]
+
+
+def standardize_length(ragged_matrix: tp.Sequence[tp.Sequence]) -> tp.List[tp.Sequence]:
+    """Standardize the length of a ragged matrix.
+
+    Example:
+        [[3], [4, 5]] -> [[3, 3], [4, 5]]
+        [[3], [4, 5], [6, 7, 8]] -> [[3, 3, 3, 3, 3, 3], [4, 5, 4, 5, 4, 5], [6, 7, 8, 6, 7, 8]]
+    """
+    lengths = [len(i) for i in ragged_matrix]
+    lcm = np.lcm.reduce(lengths)
+    duplication_count = lcm // lengths
+    return [row*n_rep for row, n_rep in zip(ragged_matrix, duplication_count)]
 
 
 class WordList:
@@ -269,12 +283,16 @@ class Glove(TextVectorEngine):
         """Simple one-word tokenization. Ignores punctuation."""
         if isinstance(phrase, str):
             phrase = phrase.strip().upper().split()
+            return [self.token2id[x] if self.is_valid_token(x) else None for x in phrase]  
         else:
             phrase = regularize(phrase)
-        return [self.token2id[x] if self.is_valid_token(x) else None for x in phrase]
+            return [self.tokenize(token) for token in phrase]
 
-    def vectorize(self, phrase):
-        return self.vectors[self.tokenize(phrase)]
+    def vectorize(self, phrase: tp.Union[str, tp.Sequence[str]]) -> npt.NDArray:
+        if isinstance(phrase, str):
+            return self.vectors[self.tokenize(phrase)]
+        tokens = np.array(standardize_length(self.tokenize(phrase)))
+        return self.vectors[tokens].mean(axis=1)
 
 
 def batched_norm(vec: np.ndarray) -> np.ndarray:
