@@ -31,7 +31,9 @@ class CodenamesEnv(gym.GoalEnv):
 
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, glove: cn.Glove, wordlist: cn.WordList):
+    def __init__(
+        self, glove: cn.Glove, wordlist: cn.WordList, seed: tp.Optional[int] = None
+    ):
         super().__init__()
         self.action_space = spaces.Tuple(
             (
@@ -58,7 +60,23 @@ class CodenamesEnv(gym.GoalEnv):
         self.reward_range = (-25, -1)
         self.glove = glove
         self.wordlist = wordlist
+        self.seed()
         self.start_new_game()
+
+    def seed(self, seed: tp.Optional[int] = None) -> tp.List[int]:
+        """Seed the environment.
+
+        Code adapted from a future version of gym.
+        """
+        if seed is not None and not (isinstance(seed, int) and 0 <= seed):
+            raise gym.error.Error(
+                f"Seed must be a non-negative integer or omitted, not {seed}"
+            )
+
+        seed_seq = np.random.SeedSequence(seed)
+        seed_int = seed_seq.entropy
+        self.np_random = np.random.Generator(np.random.PCG64(seed_seq))
+        return [seed_int]
 
     def current_observation(self):
         chosen = self.board.chosen.astype(np.int8)
@@ -149,7 +167,7 @@ class CodenamesEnv(gym.GoalEnv):
         )
 
     def start_new_game(self):
-        self.board = cn.Board(self.wordlist)
+        self.board = cn.Board(self.wordlist, rng=self.np_random)
         self.view = cn.CliView(self.board)
         self.guesser = cn.GloveGuesser(self.glove, self.board)
         self.self_similarity = cn.batched_cosine_similarity(
