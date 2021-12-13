@@ -4,6 +4,7 @@ import attr
 import typing as tp
 import nptyping as npt
 import abc
+from scipy.special import softmax
 
 
 if tp.TYPE_CHECKING:
@@ -15,12 +16,22 @@ PathLike = tp.Union[str, "os.PathLike[str]"]
 
 rng = np.random.default_rng()
 labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
+valid_teams = {"BLUE", "RED"}
 unique_labels = np.unique(labels).tolist()
 
 
 def regularize(list_of_tokens: tp.Iterable[str]) -> tp.List[str]:
     """Regularize the tokens."""
     return [token.strip().upper() for token in list_of_tokens]
+
+
+def find_x_in_y(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
+    # https://stackoverflow.com/a/8251757
+    index = np.argsort(x)
+    sorted_x = x[index]
+    sorted_index = np.searchsorted(sorted_x, y)
+    y_index = np.take(index, sorted_index, mode="clip")
+    return y_index[x[y_index] == y]
 
 
 class WordList:
@@ -81,6 +92,13 @@ class Board:
         self.which_team_guessing = "BLUE"
         # self.hint_history = []
         # self.state_history = None
+
+    def opponent_of(self, team: str):
+        assert team in valid_teams
+        return list(valid_teams.difference([team]))[0]
+
+    def end_turn(self):
+        self.which_team_guessing = self.opponent_of(self.which_team_guessing)
 
     def choose_word(self, word: str) -> str:
         if word.upper() not in self.words:
@@ -161,6 +179,19 @@ class Board:
 
     def remaining_words_for_team(self, team: str) -> int:
         return (~self.chosen & (self.labels == team)).sum()
+
+    def orient_label(self, my_team, opponent_team, label):
+        if label == my_team:
+            return "OURS"
+        elif label == opponent_team:
+            return "THEIRS"
+        return label
+
+    def orient_labels_for_team(self, my_team: str) -> npt.NDArray[str]:
+        opponent_team = self.opponent_of(my_team)
+        return np.array(
+            [self.orient_label(my_team, opponent_team, label) for label in self.labels]
+        )
 
 
 class CliView:
@@ -262,14 +293,24 @@ def batched_cosine_similarity(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
     return a_norm @ b_norm.T  # (batch1, batch2)
 
 
+GuessStrategyLookup = tp.Dict[
+    str,
+    tp.Callable[[npt.NDArray, npt.NDArray, int], tp.Tuple[npt.NDArray, npt.NDArray]],
+]
+
+
 class GloveGuesser:
     def __init__(self, glove: Glove, board: Board, limit: int = 10):
         self.glove = glove
         self.board = board
         self.limit = limit
-        self.strategy_lookup = {
+        self.word_suggestion_strategy_lookup = {
             "mean": self.generate_word_suggestions_mean,
             "minimax": self.generate_word_suggestions_minimax,
+        }
+        self.guess_strategy_lookup: GuessStrategyLookup = {
+            "greedy": self.guess_greedy,
+            "softmax": self.guess_softmax,
         }
         self.board_vectors = self.glove.vectorize(self.board.words)
 
@@ -331,7 +372,7 @@ class GloveGuesser:
     def give_hint_candidates(
         self, targets: tp.List[str], similarity_threshold=0.0, strategy: str = "minimax"
     ):
-        generate_word_suggestions = self.strategy_lookup[strategy]
+        generate_word_suggestions = self.word_suggestion_strategy_lookup[strategy]
         chosen_words, similarity_scores = generate_word_suggestions(
             targets, self.limit * 2
         )
@@ -365,7 +406,31 @@ class GloveGuesser:
     def remaining_word_vectors(self) -> npt.NDArray:
         return self.board_vectors[~self.board.chosen]
 
-    def guess(self, hint: Hint, strategy: str = "greedy") -> tp.Sequence[str]:
+    def guess_greedy(
+        self, remaining_words: npt.NDArray, similarity_scores: npt.NDArray, limit: int
+    ) -> tp.Tuple[npt.NDArray, npt.NDArray]:
+        indices = np.argsort(-similarity_scores)
+        chosen_words = remaining_words[indices][:limit]
+        similarity_scores = similarity_scores[indices][:limit]
+        return chosen_words, similarity_scores
+
+    def guess_softmax(
+        self,
+        remaining_words: npt.NDArray,
+        similarity_scores: npt.NDArray,
+        limit: int,
+        temperature: float = 0.05,
+    ) -> tp.Tuple[npt.NDArray, npt.NDArray]:
+        chosen_words = np.random.choice(
+            remaining_words,
+            limit,
+            p=softmax(similarity_scores / temperature),
+            replace=False,
+        )
+        chosen_words_indices = find_x_in_y(remaining_words, chosen_words)
+        return chosen_words, similarity_scores[chosen_words_indices]
+
+    def guess(self, hint: Hint, strategy: str = "softmax") -> tp.Sequence[str]:
         word, limit = self.choose_hint_parameters(hint)
         if not self.glove.is_valid_token(word):
             raise ValueError(f"Hint {word} is not a valid hint word!")
@@ -375,7 +440,5 @@ class GloveGuesser:
         similarity_scores = batched_cosine_similarity(
             word_vector, remaining_word_vectors
         )[0]
-        indices = np.argpartition(-similarity_scores, limit)
-        chosen_words = remaining_words[indices][:limit]
-        similarity_scores = similarity_scores[indices][:limit]
-        return chosen_words, similarity_scores
+        guess_with_strategy = self.guess_strategy_lookup[strategy]
+        return guess_with_strategy(remaining_words, similarity_scores, limit)
