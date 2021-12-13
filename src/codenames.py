@@ -420,7 +420,7 @@ class GloveGuesser:
         if hint.count is None:
             limit = num_words_remaining
         else:
-            limit = min(hint.count - hint.num_guessed, num_words_remaining)
+            limit = min(hint.count - hint.num_guessed_correctly, num_words_remaining)
         return hint.word, limit
 
     def remaining_word_vectors(self) -> npt.NDArray:
