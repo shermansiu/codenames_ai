@@ -14,7 +14,7 @@ if tp.TYPE_CHECKING:
 PathLike = tp.Union[str, "os.PathLike[str]"]
 
 
-rng = np.random.default_rng()
+default_rng = np.random.default_rng()
 labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
 bot_labels = np.array(["OURS", "THEIRS", "BYSTANDER", "ASSASSSIN"])
 valid_teams = {"BLUE", "RED"}
@@ -79,11 +79,14 @@ def is_superstring_or_substring(word: str, target: str) -> bool:
 
 
 class Board:
-    def __init__(self, wordlist: WordList) -> None:
+    def __init__(self, wordlist: WordList, rng: tp.Optional[object] = None) -> None:
         self.wordlist = wordlist
-        self.words = rng.choice(wordlist.words, 25, replace=False)
+        if rng is None:
+            rng = default_rng
+        self.rng = np.random.default_rng(rng)
+        self.words = self.rng.choice(wordlist.words, 25, replace=False)
         self.word2index = {word: i for i, word in enumerate(self.words)}
-        self.labels: tp.List[str] = rng.permutation(labels)
+        self.labels: tp.List[str] = self.rng.permutation(labels)
         self.reset_game()
 
     def is_related_word(self, word: str) -> bool:
@@ -170,17 +173,17 @@ class Board:
         Thus, 0-8 blue, 0-7 red and 1-6 bystander words are chosen.
         """
         self.reset_game()
-        num_blue = rng.integers(0, 9)
-        num_red = rng.integers(0, 8)
-        num_bystanders = rng.integers(0, 7)
-        chosen_blue = rng.choice(self.blue_indices, num_blue, replace=False)
-        chosen_red = rng.choice(self.red_indices, num_red, replace=False)
-        chosen_bystanders = rng.choice(
+        num_blue = self.rng.integers(0, 9)
+        num_red = self.rng.integers(0, 8)
+        num_bystanders = self.rng.integers(0, 7)
+        chosen_blue = self.rng.choice(self.blue_indices, num_blue, replace=False)
+        chosen_red = self.rng.choice(self.red_indices, num_red, replace=False)
+        chosen_bystanders = self.rng.choice(
             self.bystander_indices, num_bystanders, replace=False
         )
         chosen_indices = np.concatenate([chosen_blue, chosen_red, chosen_bystanders])
         self.chosen[chosen_indices] = True
-        self.which_team_guessing = rng.choice(["BLUE", "RED"])
+        self.which_team_guessing = self.rng.choice(["BLUE", "RED"])
 
     def bag_state(self) -> tp.Dict[str, tp.Set[str]]:
         return {
