@@ -45,7 +45,7 @@ def standardize_length(ragged_matrix: tp.Sequence[tp.Sequence]) -> tp.List[tp.Se
     lengths = [len(i) for i in ragged_matrix]
     lcm = np.lcm.reduce(lengths)
     duplication_count = lcm // lengths
-    return [row*n_rep for row, n_rep in zip(ragged_matrix, duplication_count)]
+    return [row * n_rep for row, n_rep in zip(ragged_matrix, duplication_count)]
 
 
 class WordList:
@@ -288,7 +288,9 @@ class Glove(TextVectorEngine):
         """Simple one-word tokenization. Ignores punctuation."""
         if isinstance(phrase, str):
             phrase = phrase.strip().upper().split()
-            return [self.token2id[x] if self.is_valid_token(x) else None for x in phrase]  
+            return [
+                self.token2id[x] if self.is_valid_token(x) else None for x in phrase
+            ]
         else:
             phrase = regularize(phrase)
             return [self.tokenize(token) for token in phrase]
