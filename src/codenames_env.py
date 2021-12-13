@@ -10,8 +10,7 @@ NUM_HINT_STRATEGIES = 2
 NUM_EMBEDDING_TYPES = 1
 NUM_LABELS = 4
 CANDIDATE_LIMIT = 3
-# observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
-observation_shape = (NUM_WORDS, NUM_WORDS)
+observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
 
 DESIRED_GOAL = (np.int8(0), np.ones(2, dtype=np.int8))
 
@@ -237,7 +236,7 @@ class CodenamesEnvNoHER(CodenamesEnv):
         self, glove: cn.Glove, wordlist: cn.WordList, seed: tp.Optional[int] = None
     ):
         super().__init__(glove, wordlist, seed)
-        self.observation_space = observation_space()
+        self.observation_space = self.observation_space.spaces["observation"]
 
     def current_goal_observation(self):
         return super().current_goal_observation()["observation"]
