@@ -10,7 +10,8 @@ NUM_HINT_STRATEGIES = 2
 NUM_EMBEDDING_TYPES = 1
 NUM_LABELS = 4
 CANDIDATE_LIMIT = 3
-observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
+# observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
+observation_shape = (NUM_WORDS, NUM_WORDS)
 
 DESIRED_GOAL = (np.int8(0), np.ones(2, dtype=np.int8))
 
