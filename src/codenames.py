@@ -278,8 +278,11 @@ class Glove(TextVectorEngine):
             self.tokens = np.array(regularize(self.tokens))
         self.token2id = {t: i for i, t in enumerate(self.tokens)}
 
-    def is_valid_token(self, token):
+    def is_valid_token(self, token: str) -> bool:
         return token.strip().upper() in self.token2id
+
+    def is_tokenizable(self, phrase: str) -> bool:
+        return all(token is not None for token in self.tokenize(phrase))
 
     def tokenize(self, phrase):
         """Simple one-word tokenization. Ignores punctuation."""
@@ -341,7 +344,7 @@ class GloveGuesser:
         self, words: tp.List[str], limit: int = 10
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         for word in words:
-            if not self.glove.is_valid_token(word):
+            if not self.glove.is_tokenizable(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
         similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors)[
@@ -356,7 +359,7 @@ class GloveGuesser:
         self, words: tp.List[str], limit: int = 10
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         for word in words:
-            if not self.glove.is_valid_token(word):
+            if not self.glove.is_tokenizable(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         word_vector = self.glove.vectorize(" ".join(words))
         similarity_scores = batched_cosine_similarity(
