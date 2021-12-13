@@ -317,5 +317,4 @@ class CodenamesEnvHack(CodenamesEnv):
         return self.step_reward_if_not_end
 
     def step(self, action):
-        raise Exception(action)
         return super().step(decode_action(action))
