@@ -60,7 +60,7 @@ class CodenamesEnv(gym.GoalEnv):
         self.reward_range = (-25, -1)
         self.glove = glove
         self.wordlist = wordlist
-        self.seed()
+        self.seed(seed)
         self.start_new_game()
 
     def seed(self, seed: tp.Optional[int] = None) -> tp.List[int]:
