@@ -55,7 +55,6 @@ class CodenamesEnv(gym.GoalEnv):
                 spaces.Discrete(CANDIDATE_LIMIT * NUM_HINT_STRATEGIES),  # noqa
             )
         )
-        observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
         self.observation_space = spaces.Dict(
             {
                 "observation": observation_space(),
