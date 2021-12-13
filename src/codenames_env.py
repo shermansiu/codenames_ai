@@ -14,8 +14,8 @@ CANDIDATE_LIMIT = 3
 DESIRED_GOAL = (np.int8(0), np.ones(2, dtype=np.int8))
 
 
-def resize_token_vector(vector, limit):
-    """Resize a 1D token vector to a given length, padding with "0" when necessary."""
+def resize_vector(vector, limit):
+    """Resize a 1D vector to a given length, padding with "0" when necessary."""
     vector = vector[:limit]
     return np.pad(vector, (0, limit - vector.shape[0]))
 
@@ -64,6 +64,9 @@ class CodenamesEnv(gym.GoalEnv):
         self.step_reward_if_win = 0
         self.step_reward_if_not_end = -1
         self.reward_range = (-float("inf"), self.step_reward_if_not_end)
+        self.reward_threshold = -4
+        self.trials = 100
+        self.max_episode_steps = -self.step_reward_if_lose
         self.id = "Codenames"
         self.seed(seed)
         self.start_new_game()
@@ -118,8 +121,8 @@ class CodenamesEnv(gym.GoalEnv):
         )[0]
         all_candidates = np.concatenate(
             [
-                resize_token_vector(mean_candidates, limit),
-                resize_token_vector(minimax_candidates, limit),
+                resize_vector(mean_candidates, limit),
+                resize_vector(minimax_candidates, limit),
             ]
         )
         return all_candidates
@@ -256,11 +259,13 @@ def encode_observation(observation):
 
 
 def hacked_goal_space():
-    return spaces.Box(low=0, high=9, shape=(3,), dtype=np.int8)
+    return spaces.Box(low=0, high=9, shape=(1, NUM_WORDS), dtype=np.int8)
 
 
 def encode_goal(goal):
-    return np.concatenate([[goal[0]], goal[1]])
+    return resize_vector(
+        np.concatenate([[goal[0]], goal[1]]), NUM_WORDS
+    )[None, :]
 
 
 ENCODED_DESIRED_GOAL = encode_goal(DESIRED_GOAL)
