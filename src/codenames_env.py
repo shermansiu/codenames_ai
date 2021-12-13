@@ -324,9 +324,11 @@ class CodenamesEnvHack(CodenamesEnv):
         return ENCODED_DESIRED_GOAL
 
     def is_done(self, achieved_goal):
-        return achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2
+        achieved_goal = achieved_goal[0][:3]
+        return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item()
 
     def compute_reward(self, achieved_goal, desired_goal, info: dict):
+        achieved_goal = achieved_goal[0][:3]
         if achieved_goal[0] == 0:
             return self.step_reward_if_win
         if achieved_goal[1:].sum() < 2:
