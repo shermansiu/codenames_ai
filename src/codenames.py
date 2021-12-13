@@ -216,7 +216,7 @@ class CliView:
         words = []
         # Arguably more readable than the equivalent list comprehension
         for w, l, c in zip(self.board.words, self.board.labels, self.board.chosen):
-            w += f"_{l[0]}"
+            w += f"_{l[:2]}"
             if c:
                 w = w.lower()
             words.append(w)
@@ -227,7 +227,7 @@ class CliView:
         # Arguably more readable than the equivalent list comprehension
         for w, l, c in zip(self.board.words, self.board.labels, self.board.chosen):
             if c:
-                w += f"_{l[0]}"
+                w += f"_{l[:2]}"
                 w = w.lower()
             words.append(w)
         return words
