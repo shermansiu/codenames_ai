@@ -177,7 +177,7 @@ class CodenamesEnv(gym.GoalEnv):
         self.self_similarity = cn.batched_cosine_similarity(
             self.guesser.board_vectors, self.guesser.board_vectors
         ).clip(-1, 1)
-        self.team = cn.rng.choice(["RED", "BLUE"])
+        self.team = self.np_random.choice(["RED", "BLUE"])
         self.opponent = self.board.opponent_of(self.team)
         if self.team == "RED":
             self.board.end_turn()
