@@ -334,3 +334,19 @@ class CodenamesEnvHack(CodenamesEnv):
 
     def step(self, action):
         return super().step(decode_action(action))
+
+
+class CodenamesEnvHackNoHER(CodenamesEnvHack):
+    """The environment with no hindsight experience replay support.
+
+    Some agents don't support hindsight experience replay.
+    """
+
+    def __init__(
+        self, glove: cn.Glove, wordlist: cn.WordList, seed: tp.Optional[int] = None
+    ):
+        super().__init__(glove, wordlist, seed)
+        self.observation_space = self.observation_space.spaces["observation"]
+
+    def current_goal_observation(self):
+        return super().current_goal_observation()["observation"]
