@@ -244,11 +244,13 @@ class CliView:
         self.generic_view(self.operative_words_to_display)
 
 
-@attr.s(frozen=True, auto_attribs=True)
+@attr.s(auto_attribs=True)
 class Hint:
     word: str
     count: tp.Optional[int]
+    team: str
     num_guessed: int = attr.ib(default=0)
+    num_guessed_correctly: int = attr.ib(default=0)
 
 
 class TextVectorEngine(metaclass=abc.ABCMeta):
