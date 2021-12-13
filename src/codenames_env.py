@@ -20,6 +20,18 @@ def resize_vector(vector, limit):
     return np.pad(vector, (0, limit - vector.shape[0]))
 
 
+def observation_space():
+    return spaces.Tuple(
+        (
+            spaces.Box(
+                low=-1, high=1, shape=observation_shape, dtype=np.float32
+            ),
+            spaces.MultiDiscrete([NUM_LABELS] * NUM_WORDS),
+            spaces.MultiBinary(NUM_WORDS),
+        )
+    )
+
+
 def goal_space():
     return spaces.Tuple(
         (spaces.Box(low=0, high=9, shape=(), dtype=np.int8), spaces.MultiBinary(2))
@@ -45,15 +57,7 @@ class CodenamesEnv(gym.GoalEnv):
         observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
         self.observation_space = spaces.Dict(
             {
-                "observation": spaces.Tuple(
-                    (
-                        spaces.Box(
-                            low=-1, high=1, shape=observation_shape, dtype=np.float32
-                        ),
-                        spaces.MultiDiscrete([NUM_LABELS] * NUM_WORDS),
-                        spaces.MultiBinary(NUM_WORDS),
-                    )
-                ),
+                "observation": observation_space(),
                 "desired_goal": goal_space(),
                 "achieved_goal": goal_space(),
             }
@@ -313,4 +317,5 @@ class CodenamesEnvHack(CodenamesEnv):
         return self.step_reward_if_not_end
 
     def step(self, action):
+        raise Exception(action)
         return super().step(decode_action(action))
