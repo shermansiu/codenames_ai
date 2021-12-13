@@ -58,11 +58,14 @@ class CodenamesEnv(gym.GoalEnv):
                 "achieved_goal": goal_space(),
             }
         )
-        self.reward_range = (-25, -1)
         self.glove = glove
         self.wordlist = wordlist
         self.seed(seed)
         self.start_new_game()
+        self.step_reward_if_lose = -25
+        self.step_reward_if_win = 0
+        self.step_reward_if_not_end = -1
+        self.reward_range = (-float("inf"), self.step_reward_if_not_end)
 
     def seed(self, seed: tp.Optional[int] = None) -> tp.List[int]:
         """Seed the environment.
@@ -129,20 +132,20 @@ class CodenamesEnv(gym.GoalEnv):
 
     def _compute_reward(self):
         if self.board.remaining_words_for_team(self.team) == 0:
-            return 0
+            return self.step_reward_if_win
         if (
             self.board.remaining_words_for_team(self.opponent) == 0
             or self.board.remaining_words_for_team("ASSASSIN") == 0
         ):
-            return -25
-        return -1
+            return self.step_reward_if_lose
+        return self.step_reward_if_not_end
 
     def compute_reward(self, achieved_goal, desired_goal, info: dict):
         if achieved_goal[0] == 0:
-            return 0
+            return self.step_reward_if_win
         if achieved_goal[1].sum() < 2:
-            return -25
-        return -1
+            return self.step_reward_if_lose
+        return self.step_reward_if_not_end
 
     def step(self, action):
         words_to_choose, candidate_index = action
