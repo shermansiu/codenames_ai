@@ -100,10 +100,13 @@ class CodenamesEnv(gym.GoalEnv):
             bad_word_indicator,
         )
 
+    def desired_goal(self):
+        return DESIRED_GOAL
+
     def current_goal_observation(self):
         return {
             "observation": self.current_observation(),
-            "desired_goal": DESIRED_GOAL,
+            "desired_goal": self.desired_goal(),
             "achieved_goal": self.achieved_goal(),
         }
 
@@ -166,7 +169,7 @@ class CodenamesEnv(gym.GoalEnv):
         achieved_goal = self.achieved_goal()
         return (
             self.current_goal_observation(),
-            self.compute_reward(achieved_goal, DESIRED_GOAL, dict()),
+            self.compute_reward(achieved_goal, self.desired_goal(), dict()),
             self.is_done(achieved_goal),
             self.debug_info(),
         )
@@ -214,3 +217,95 @@ class CodenamesEnv(gym.GoalEnv):
             guessed_words=self.guessed_words,
             team=self.team,
         )
+
+
+def hacked_action_space():
+    num_hint_candidates = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
+    assert num_hint_candidates % 2 == 0
+    height = NUM_WORDS + num_hint_candidates // 2
+    width = 2
+    # int64 for compatibility with
+    # https://github.com/p-christ/Deep-Reinforcement-Learning-Algorithms-with-PyTorch/blob/master/agents/Base_Agent.py
+    return spaces.Box(low=0, high=1, shape=(height, width), dtype=np.float32)
+
+
+def decode_action(hacked_action):
+    words_to_choose = hacked_action[:NUM_WORDS].argmax(-1).astype(np.int8)
+    candidate_index = hacked_action[NUM_WORDS:].flatten().argmax()
+    return words_to_choose, candidate_index
+
+
+def hacked_observation_space():
+    height = NUM_WORDS * (NUM_EMBEDDING_TYPES + NUM_LABELS + 2)
+    width = NUM_WORDS
+    return spaces.Box(low=-1, high=1, shape=(height, width), dtype=np.float32)
+
+
+def one_hot_encode(indices, dim):
+    num_entries = indices.shape[0]
+    encoding = np.zeros((num_entries, dim), dtype=np.float32)
+    encoding[np.arange(num_entries), indices] = 1
+    return encoding
+
+
+def encode_observation(observation):
+    self_similarity = observation[0].reshape(-1, NUM_WORDS)
+    labels = one_hot_encode(observation[1], NUM_LABELS).T
+    chosen_mask = one_hot_encode(observation[2], 2).T
+    return np.vstack([self_similarity, labels, chosen_mask]).astype(np.float32)
+
+
+def hacked_goal_space():
+    return spaces.Box(low=0, high=9, shape=(3,), dtype=np.int8)
+
+
+def encode_goal(goal):
+    return np.concatenate([[goal[0]], goal[1]])
+
+
+ENCODED_DESIRED_GOAL = encode_goal(DESIRED_GOAL)
+
+
+class CodenamesEnvHack(CodenamesEnv):
+    """Codenames environment for gym.
+
+    Hack the action and observation spaces to make more agents work with it.
+    """
+
+    environment_name = "Codenames v0.0.1"
+    metadata = {"render.modes": ["human"]}
+
+    def __init__(
+        self, glove: cn.Glove, wordlist: cn.WordList, seed: tp.Optional[int] = None
+    ):
+        super().__init__(glove, wordlist, seed)
+        self.action_space = hacked_action_space()
+        self.observation_space = spaces.Dict(
+            {
+                "observation": hacked_observation_space(),
+                "desired_goal": hacked_goal_space(),
+                "achieved_goal": hacked_goal_space(),
+            }
+        )
+
+    def current_observation(self):
+        return encode_observation(super().current_observation())
+
+    def achieved_goal(self):
+        return encode_goal(super().achieved_goal())
+
+    def desired_goal(self):
+        return ENCODED_DESIRED_GOAL
+
+    def is_done(self, achieved_goal):
+        return achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2
+
+    def compute_reward(self, achieved_goal, desired_goal, info: dict):
+        if achieved_goal[0] == 0:
+            return self.step_reward_if_win
+        if achieved_goal[1:].sum() < 2:
+            return self.step_reward_if_lose
+        return self.step_reward_if_not_end
+
+    def step(self, action):
+        return super().step(decode_action(action))
