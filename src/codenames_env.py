@@ -29,6 +29,7 @@ def goal_space():
 class CodenamesEnv(gym.GoalEnv):
     """Codenames environment for gym."""
 
+    environment_name = "Codenames v0.0.1"
     metadata = {"render.modes": ["human"]}
 
     def __init__(
