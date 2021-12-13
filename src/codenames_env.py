@@ -64,6 +64,7 @@ class CodenamesEnv(gym.GoalEnv):
         self.step_reward_if_win = 0
         self.step_reward_if_not_end = -1
         self.reward_range = (-float("inf"), self.step_reward_if_not_end)
+        self.id = "Codenames"
         self.seed(seed)
         self.start_new_game()
 
