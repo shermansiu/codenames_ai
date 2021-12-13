@@ -259,7 +259,7 @@ def decode_action(hacked_action):
 
 
 def hacked_observation_space():
-    height = NUM_WORDS * (NUM_EMBEDDING_TYPES + NUM_LABELS + 2)
+    height = NUM_WORDS * NUM_EMBEDDING_TYPES + NUM_LABELS + 2
     width = NUM_WORDS
     return spaces.Box(low=-1, high=1, shape=(height, width), dtype=np.float32)
 
