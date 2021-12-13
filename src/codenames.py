@@ -16,7 +16,7 @@ PathLike = tp.Union[str, "os.PathLike[str]"]
 
 default_rng = np.random.default_rng()
 labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
-bot_labels = np.array(["OURS", "THEIRS", "BYSTANDER", "ASSASSSIN"])
+bot_labels = np.array(["OURS", "THEIRS", "BYSTANDER", "ASSASSIN"])
 valid_teams = {"BLUE", "RED"}
 unique_labels = np.unique(labels).tolist()
 
