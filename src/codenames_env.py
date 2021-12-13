@@ -139,7 +139,7 @@ class CodenamesEnv(gym.GoalEnv):
         )
 
     def is_done(self, achieved_goal):
-        return achieved_goal[0] == 0 or achieved_goal[1].sum() < 2
+        return (achieved_goal[0] == 0 or achieved_goal[1].sum() < 2).item()
 
     def _compute_reward(self):
         if self.board.remaining_words_for_team(self.team) == 0:
