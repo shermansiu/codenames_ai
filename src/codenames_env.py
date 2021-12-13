@@ -226,6 +226,22 @@ class CodenamesEnv(gym.GoalEnv):
         )
 
 
+class CodenamesEnvNoHER(CodenamesEnv):
+    """The environment with no hindsight experience replay support.
+
+    Some agents don't support hindsight experience replay.
+    """
+
+    def __init__(
+        self, glove: cn.Glove, wordlist: cn.WordList, seed: tp.Optional[int] = None
+    ):
+        super().__init__(glove, wordlist, seed)
+        self.observation_space = observation_space()
+
+    def current_goal_observation(self):
+        return super().current_goal_observation()["observation"]
+
+
 def hacked_action_space():
     num_hint_candidates = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
     assert num_hint_candidates % 2 == 0
