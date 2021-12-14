@@ -28,6 +28,7 @@ def regularize(list_of_tokens: tp.Iterable[str]) -> tp.List[str]:
 
 def find_x_in_y(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
     # https://stackoverflow.com/a/8251757
+    x = np.array(x)  # Allow array-based indexing
     index = np.argsort(x)
     sorted_x = x[index]
     sorted_index = np.searchsorted(sorted_x, y)
