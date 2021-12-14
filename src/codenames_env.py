@@ -355,3 +355,84 @@ class CodenamesEnvHackNoHER(CodenamesEnvHack):
 
     def current_goal_observation(self):
         return super().current_goal_observation()["observation"]
+
+
+WORDLIST_SIZE = 400  # len(wordlist.words)
+
+
+def hacked_observation_space_discrete():
+    assert WORDLIST_SIZE % NUM_WORDS == 0
+    height = WORDLIST_SIZE // NUM_WORDS * NUM_EMBEDDING_TYPES + NUM_LABELS + 2
+    width = NUM_WORDS
+    return spaces.Box(low=-1, high=1, shape=(height, width), dtype=np.float32)
+
+
+def one_hot_encode_1d(indices, dim):
+    embedding = np.zeros(dim)
+    embedding[indices] = 1
+    return embedding
+
+
+def encode_observation_discrete(observation, word_indices):
+    word_indices = word_indices.reshape(-1, NUM_WORDS)
+    labels = one_hot_encode(observation[1], NUM_LABELS).T
+    chosen_mask = one_hot_encode(observation[2], 2).T
+    return np.vstack([word_indices, labels, chosen_mask]).astype(np.float32)
+
+
+class CodenamesEnvHackDiscrete(CodenamesEnv):
+    """Codenames environment for gym.
+
+    Hack the action and observation spaces to make more agents work with it.
+    """
+
+    environment_name = "Codenames v0.0.1"
+    metadata = {"render.modes": ["human"]}
+
+    def __init__(
+        self, glove: cn.Glove, wordlist: cn.WordList, seed: tp.Optional[int] = None
+    ):
+        super().__init__(glove, wordlist, seed)
+        self.action_space = hacked_action_space()
+        self.observation_space = spaces.Dict(
+            {
+                "observation": hacked_observation_space_discrete(),
+                "desired_goal": hacked_goal_space(),
+                "achieved_goal": hacked_goal_space(),
+            }
+        )
+
+    def start_new_game(self):
+        super().start_new_game()
+        indices = cn.find_x_in_y(self.wordlist.words, self.board.words)
+        self.word_indices = one_hot_encode_1d(indices, WORDLIST_SIZE)
+
+    def current_observation(self):
+        return encode_observation_discrete(
+            super().current_observation(), self.word_indices
+        )
+
+    def achieved_goal(self):
+        return encode_goal(super().achieved_goal())
+
+    def desired_goal(self):
+        return ENCODED_DESIRED_GOAL
+
+    def is_done(self, achieved_goal):
+        achieved_goal = achieved_goal[0][:3]
+        return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item()
+
+    def compute_reward(self, achieved_goal, desired_goal, info: dict):
+        if len(achieved_goal.shape) == 3:
+            return np.array(
+                [self.compute_reward(a, desired_goal, info) for a in achieved_goal]
+            )
+        achieved_goal = achieved_goal[0, :3]
+        if achieved_goal[0] == 0:
+            return self.step_reward_if_win
+        if achieved_goal[1:].sum() < 2:
+            return self.step_reward_if_lose
+        return self.step_reward_if_not_end
+
+    def step(self, action):
+        return super().step(decode_action(action))
