@@ -324,7 +324,12 @@ class CodenamesEnvHack(CodenamesEnv):
         return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item()
 
     def compute_reward(self, achieved_goal, desired_goal, info: dict):
-        achieved_goal = achieved_goal[0][:3]
+        if len(achieved_goal.shape) == 3:
+            return np.array(
+                [self.compute_reward(a, desired_goal, info) for a in achieved_goal]
+            )
+        achieved_goal = achieved_goal[..., 0, :3]
+        assert len(achieved_goal.shape) == 1
         if achieved_goal[0] == 0:
             return self.step_reward_if_win
         if achieved_goal[1:].sum() < 2:
