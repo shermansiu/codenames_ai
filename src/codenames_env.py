@@ -25,9 +25,7 @@ def resize_vector(vector, limit):
 def observation_space():
     return spaces.Tuple(
         (
-            spaces.Box(
-                low=-1, high=1, shape=observation_shape, dtype=np.float32
-            ),
+            spaces.Box(low=-1, high=1, shape=observation_shape, dtype=np.float32),
             spaces.MultiDiscrete([NUM_LABELS] * NUM_WORDS),
             spaces.MultiBinary(NUM_WORDS),
         )
