@@ -282,9 +282,7 @@ def hacked_goal_space():
 
 
 def encode_goal(goal):
-    return resize_vector(
-        np.concatenate([[goal[0]], goal[1]]), NUM_WORDS
-    )[None, :]
+    return resize_vector(np.concatenate([[goal[0]], goal[1]]), NUM_WORDS)[None, :]
 
 
 ENCODED_DESIRED_GOAL = encode_goal(DESIRED_GOAL)
