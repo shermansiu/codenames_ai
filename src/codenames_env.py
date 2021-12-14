@@ -244,14 +244,14 @@ class CodenamesEnvNoHER(CodenamesEnv):
 def hacked_action_space():
     num_hint_candidates = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
     assert num_hint_candidates % 2 == 0
-    height = NUM_WORDS + num_hint_candidates // 2
-    width = 2
+    dim = NUM_WORDS * 2 + num_hint_candidates
     # int64 for compatibility with
     # https://github.com/p-christ/Deep-Reinforcement-Learning-Algorithms-with-PyTorch/blob/master/agents/Base_Agent.py
-    return spaces.Box(low=0, high=1, shape=(height, width), dtype=np.float32)
+    return spaces.Box(low=0, high=1, shape=(dim,), dtype=np.float32)
 
 
 def decode_action(hacked_action):
+    hacked_action = hacked_action.reshape((-1, 2))
     words_to_choose = hacked_action[:NUM_WORDS].argmax(-1).astype(np.int8)
     candidate_index = hacked_action[NUM_WORDS:].flatten().argmax()
     return words_to_choose, candidate_index
