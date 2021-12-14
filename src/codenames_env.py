@@ -325,6 +325,7 @@ class CodenamesEnvHack(CodenamesEnv):
 
     def compute_reward(self, achieved_goal, desired_goal, info: dict):
         if len(achieved_goal.shape) == 3:
+            # TODO: parallelize better? (e.g. via numba?)
             return np.array(
                 [self.compute_reward(a, desired_goal, info) for a in achieved_goal]
             )
