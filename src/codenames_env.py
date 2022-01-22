@@ -10,6 +10,7 @@ NUM_HINT_STRATEGIES = 2
 NUM_EMBEDDING_TYPES = 1
 NUM_LABELS = 4
 CANDIDATE_LIMIT = 3
+NUM_HINT_CANDIDATES = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
 # observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
 observation_shape = (NUM_WORDS, NUM_WORDS)
 
@@ -242,9 +243,9 @@ class CodenamesEnvNoHER(CodenamesEnv):
 
 
 def hacked_action_space():
-    num_hint_candidates = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
-    assert num_hint_candidates % 2 == 0
-    dim = NUM_WORDS * 2 + num_hint_candidates
+    NUM_HINT_CANDIDATES = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
+    assert NUM_HINT_CANDIDATES % 2 == 0
+    dim = NUM_WORDS * 2 + NUM_HINT_CANDIDATES
     # int64 for compatibility with
     # https://github.com/p-christ/Deep-Reinforcement-Learning-Algorithms-with-PyTorch/blob/master/agents/Base_Agent.py
     return spaces.Box(low=0, high=1, shape=(dim,), dtype=np.float32)
