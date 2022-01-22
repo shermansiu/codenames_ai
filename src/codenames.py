@@ -270,13 +270,16 @@ class TextVectorEngine(metaclass=abc.ABCMeta):
 
 
 class Glove(TextVectorEngine):
-    def __init__(self, glove_vector_path, glove_tokens_path):
+    def __init__(self, glove_vector_path, glove_tokens_path, normalized=False):
         gv_path = pathlib.Path(glove_vector_path)
         gt_path = pathlib.Path(glove_tokens_path)
         assert gv_path.exists()
         assert gt_path.exists()
         with gv_path.open("rb") as f:
             self.vectors = np.load(gv_path)
+        self.normalized = normalized
+        if self.normalized:
+            self.vectors = batched_norm(self.vectors)
         with gt_path.open() as f:
             self.tokens = f.read().splitlines()
             self.tokens = np.array(regularize(self.tokens))
@@ -298,6 +301,13 @@ class Glove(TextVectorEngine):
         else:
             phrase = regularize(phrase)
             return [self.tokenize(token) for token in phrase]
+
+    def calculate_similarity_to(self, word_vector: npt.NDArray) -> npt.NDArray:
+        if self.normalized:
+            # assert np.allclose(word_vector.sum(-1), np.ones(word_vector.shape[0]))
+            return word_vector @ self.vectors.T
+        else:
+            return batched_cosine_similarity(word_vector, self.vectors)
 
     def vectorize(self, phrase: tp.Union[str, tp.Sequence[str]]) -> npt.NDArray:
         if isinstance(phrase, str):
@@ -347,7 +357,10 @@ class GloveGuesser:
         return self.board.batch_is_illegal(chosen_words)
 
     def generate_word_suggestions_abstract(
-        self, get_similarity_scores: tp.Callable[[tp.List[str]], npt.NDArray], words: tp.List[str], limit: int = 10
+        self,
+        get_similarity_scores: tp.Callable[[tp.List[str]], npt.NDArray],
+        words: tp.List[str],
+        limit: int = 10,
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         for word in words:
             if not self.glove.is_tokenizable(word):
@@ -363,22 +376,26 @@ class GloveGuesser:
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         def get_similarity_scores(words: tp.List[str]) -> npt.NDArray:
             word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-            similarity_scores = batched_cosine_similarity(word_vector, self.glove.vectors)[
-                0
-            ]
+            similarity_scores = self.glove.calculate_similarity_to(word_vector)[0]
             return similarity_scores
-        return self.generate_word_suggestions_abstract(get_similarity_scores, words, limit)
+
+        return self.generate_word_suggestions_abstract(
+            get_similarity_scores, words, limit
+        )
 
     def generate_word_suggestions_minimax(
         self, words: tp.List[str], limit: int = 10
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
         def get_similarity_scores(words: tp.List[str]) -> npt.NDArray:
-        word_vector = self.glove.vectorize(" ".join(words))
-        similarity_scores = batched_cosine_similarity(
-            word_vector, self.glove.vectors
-        ).min(axis=0)
+            word_vector = self.glove.vectorize(" ".join(words))
+            similarity_scores = self.glove.calculate_similarity_to(word_vector).min(
+                axis=0
+            )
             return similarity_scores
-        return self.generate_word_suggestions_abstract(get_similarity_scores, words, limit)
+
+        return self.generate_word_suggestions_abstract(
+            get_similarity_scores, words, limit
+        )
 
     def filter_words(
         self,
