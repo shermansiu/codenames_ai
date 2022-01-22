@@ -371,30 +371,30 @@ class GloveGuesser:
         similarity_scores = similarity_scores[indices]
         return chosen_words, similarity_scores
 
+    def get_similarity_scores_mean(self, words: tp.List[str]) -> npt.NDArray:
+        word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
+        similarity_scores = self.glove.calculate_similarity_to(word_vector)[0]
+        return similarity_scores
+
     def generate_word_suggestions_mean(
         self, words: tp.List[str], limit: int = 10
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
-        def get_similarity_scores(words: tp.List[str]) -> npt.NDArray:
-            word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-            similarity_scores = self.glove.calculate_similarity_to(word_vector)[0]
-            return similarity_scores
-
         return self.generate_word_suggestions_abstract(
-            get_similarity_scores, words, limit
+            self.get_similarity_scores_mean, words, limit
         )
+
+    def get_similarity_scores_minimax(self, words: tp.List[str]) -> npt.NDArray:
+        word_vector = self.glove.vectorize(" ".join(words))
+        similarity_scores = self.glove.calculate_similarity_to(word_vector).min(
+            axis=0
+        )
+        return similarity_scores
 
     def generate_word_suggestions_minimax(
         self, words: tp.List[str], limit: int = 10
     ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
-        def get_similarity_scores(words: tp.List[str]) -> npt.NDArray:
-            word_vector = self.glove.vectorize(" ".join(words))
-            similarity_scores = self.glove.calculate_similarity_to(word_vector).min(
-                axis=0
-            )
-            return similarity_scores
-
         return self.generate_word_suggestions_abstract(
-            get_similarity_scores, words, limit
+            self.get_similarity_scores_minimax, words, limit
         )
 
     def filter_words(
