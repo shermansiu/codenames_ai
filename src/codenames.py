@@ -366,9 +366,9 @@ class GloveGuesser:
             if not self.glove.is_tokenizable(word):
                 raise ValueError(f"Hint {word} is not a valid hint word!")
         similarity_scores = get_similarity_scores(words)
-        indices = np.argpartition(-similarity_scores, limit)
-        chosen_words = self.glove.tokens[indices][:limit]
-        similarity_scores = similarity_scores[indices][:limit]
+        indices = np.argpartition(-similarity_scores, limit)[:limit]
+        chosen_words = self.glove.tokens[indices]
+        similarity_scores = similarity_scores[indices]
         return chosen_words, similarity_scores
 
     def generate_word_suggestions_mean(
