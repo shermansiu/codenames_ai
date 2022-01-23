@@ -302,7 +302,7 @@ class Glove(TextVectorEngine):
             phrase = regularize(phrase)
             return [self.tokenize(token) for token in phrase]
 
-    def calculate_similarity_to(self, word_vector: npt.NDArray) -> npt.NDArray:
+    def calculate_similarity_to_word_vector(self, word_vector: npt.NDArray) -> npt.NDArray:
         if self.normalized:
             # assert np.allclose(word_vector.sum(-1), np.ones(word_vector.shape[0]))
             return word_vector @ self.vectors.T
@@ -373,7 +373,7 @@ class GloveGuesser:
 
     def get_similarity_scores_mean(self, words: tp.List[str]) -> npt.NDArray:
         word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-        similarity_scores = self.glove.calculate_similarity_to(word_vector)[0]
+        similarity_scores = self.glove.calculate_similarity_to_word_vector(word_vector)[0]
         return similarity_scores
 
     def generate_word_suggestions_mean(
@@ -385,7 +385,7 @@ class GloveGuesser:
 
     def get_similarity_scores_minimax(self, words: tp.List[str]) -> npt.NDArray:
         word_vector = self.glove.vectorize(" ".join(words))
-        similarity_scores = self.glove.calculate_similarity_to(word_vector).min(
+        similarity_scores = self.glove.calculate_similarity_to_word_vector(word_vector).min(
             axis=0
         )
         return similarity_scores
