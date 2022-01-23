@@ -270,7 +270,13 @@ class TextVectorEngine(metaclass=abc.ABCMeta):
 
 
 class Glove(TextVectorEngine):
-    def __init__(self, glove_vector_path, glove_tokens_path, normalized=False):
+    def __init__(
+        self,
+        glove_vector_path,
+        glove_tokens_path,
+        normalized: bool = False,
+        use_self_similarity: bool = True,
+    ):
         gv_path = pathlib.Path(glove_vector_path)
         gt_path = pathlib.Path(glove_tokens_path)
         assert gv_path.exists()
@@ -280,6 +286,10 @@ class Glove(TextVectorEngine):
         self.normalized = normalized
         if self.normalized:
             self.vectors = batched_norm(self.vectors)
+        self.use_self_similarity = use_self_similarity
+        if self.use_self_similarity:
+            assert self.normalized
+            self.self_similarity_matrix = self.vectors @ self.vectors.T
         with gt_path.open() as f:
             self.tokens = f.read().splitlines()
             self.tokens = np.array(regularize(self.tokens))
