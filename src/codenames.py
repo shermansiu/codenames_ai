@@ -312,7 +312,9 @@ class Glove(TextVectorEngine):
             phrase = regularize(phrase)
             return [self.tokenize(token) for token in phrase]
 
-    def calculate_similarity_to_word_vector(self, word_vector: npt.NDArray) -> npt.NDArray:
+    def calculate_similarity_to_word_vector(
+        self, word_vector: npt.NDArray
+    ) -> npt.NDArray:
         if self.normalized:
             # assert np.allclose(word_vector.sum(-1), np.ones(word_vector.shape[0]))
             return word_vector @ self.vectors.T
@@ -324,6 +326,16 @@ class Glove(TextVectorEngine):
             return self.vectors[self.tokenize(phrase)]
         tokens = np.array(standardize_length(self.tokenize(phrase)))
         return self.vectors[tokens].mean(axis=1)
+
+    def calculate_similarity_to(self, phrases: tp.Sequence[str]) -> npt.NDArray:
+        assert self.use_self_similarity
+        tokens = np.array(
+            standardize_length(self.tokenize(phrases))
+        )  # (num_words, max_len)
+        similarity_matrix = self.self_similarity_matrix[tokens].mean(
+            axis=1
+        )  # (num_words, vocab_size)
+        return similarity_matrix
 
 
 def batched_norm(vec: np.ndarray) -> np.ndarray:
@@ -382,8 +394,13 @@ class GloveGuesser:
         return chosen_words, similarity_scores
 
     def get_similarity_scores_mean(self, words: tp.List[str]) -> npt.NDArray:
+        if self.glove.use_self_similarity:
+            similarity_scores = self.glove.calculate_similarity_to(words).mean(0)
+        else:
         word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-        similarity_scores = self.glove.calculate_similarity_to_word_vector(word_vector)[0]
+            similarity_scores = self.glove.calculate_similarity_to_word_vector(
+                word_vector
+            )[0]
         return similarity_scores
 
     def generate_word_suggestions_mean(
@@ -394,10 +411,13 @@ class GloveGuesser:
         )
 
     def get_similarity_scores_minimax(self, words: tp.List[str]) -> npt.NDArray:
+        if self.glove.use_self_similarity:
+            similarity_scores = self.glove.calculate_similarity_to(words).min(0)
+        else:
         word_vector = self.glove.vectorize(" ".join(words))
-        similarity_scores = self.glove.calculate_similarity_to_word_vector(word_vector).min(
-            axis=0
-        )
+            similarity_scores = self.glove.calculate_similarity_to_word_vector(
+                word_vector
+            ).min(axis=0)
         return similarity_scores
 
     def generate_word_suggestions_minimax(
