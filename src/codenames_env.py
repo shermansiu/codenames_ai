@@ -6,10 +6,10 @@ import codenames as cn
 
 
 NUM_WORDS = 25
-NUM_HINT_STRATEGIES = 2
+NUM_HINT_STRATEGIES = 1
 NUM_EMBEDDING_TYPES = 1
 NUM_LABELS = 4
-CANDIDATE_LIMIT = 3
+CANDIDATE_LIMIT = 4
 NUM_HINT_CANDIDATES = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
 # observation_shape = (NUM_WORDS, NUM_WORDS, NUM_EMBEDDING_TYPES)
 observation_shape = (NUM_WORDS, NUM_WORDS)
@@ -119,17 +119,23 @@ class CodenamesEnv(gym.GoalEnv):
 
     def generate_candidates(self, targets: tp.Sequence[str], limit: int):
         """TODO: For the future, when we can pick among several candidates"""
-        mean_candidates = self.guesser.give_hint_candidates(targets, strategy="mean")[0]
-        minimax_candidates = self.guesser.give_hint_candidates(
-            targets, strategy="minimax"
-        )[0]
-        all_candidates = np.concatenate(
-            [
-                resize_vector(mean_candidates, limit),
-                resize_vector(minimax_candidates, limit),
-            ]
-        )
-        return all_candidates
+        # mean_candidates = self.guesser.give_hint_candidates(targets, strategy="mean")[0]
+        # minimax_candidates = self.guesser.give_hint_candidates(
+        #     targets, strategy="minimax"
+        # )[0]
+        if len(targets):
+            approx_mean_candidates = self.guesser.give_hint_candidates(
+                targets, strategy="approx_mean"
+            )[0]
+            all_candidates = np.concatenate(
+                [
+                    # resize_vector(mean_candidates, limit),
+                    # resize_vector(minimax_candidates, limit),
+                    resize_vector(approx_mean_candidates, limit),
+                ]
+            )
+            return all_candidates
+        return self.np_random.choice(self.board.words, limit)
 
     def _is_done(self):
         return (

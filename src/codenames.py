@@ -4,6 +4,7 @@ import attr
 import typing as tp
 import nptyping as npt
 import abc
+import scann
 from scipy.special import softmax
 
 
@@ -13,6 +14,8 @@ if tp.TYPE_CHECKING:
 
 PathLike = tp.Union[str, "os.PathLike[str]"]
 
+NUM_LEAVES_TO_SEARCH = 300
+PRE_REORDER_NUM_NEIGHBOURS = 250
 
 default_rng = np.random.default_rng()
 labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
@@ -275,7 +278,7 @@ class Glove(TextVectorEngine):
         glove_vector_path,
         glove_tokens_path,
         normalized: bool = False,
-        use_self_similarity: bool = True,
+        use_approximate: bool = True,
     ):
         gv_path = pathlib.Path(glove_vector_path)
         gt_path = pathlib.Path(glove_tokens_path)
@@ -284,12 +287,21 @@ class Glove(TextVectorEngine):
         with gv_path.open("rb") as f:
             self.vectors = np.load(gv_path)
         self.normalized = normalized
+        self.use_approximate = use_approximate
         if self.normalized:
             self.vectors = batched_norm(self.vectors)
-        self.use_self_similarity = use_self_similarity
-        if self.use_self_similarity:
-            assert self.normalized
-            self.self_similarity_matrix = self.vectors @ self.vectors.T
+            if self.use_approximate:
+                self.searcher = (
+                    scann.scann_ops_pybind.builder(self.vectors, 20, "dot_product")
+                    .tree(
+                        num_leaves=2000,
+                        num_leaves_to_search=NUM_LEAVES_TO_SEARCH,
+                        training_sample_size=250000,
+                    )
+                    .score_ah(2, anisotropic_quantization_threshold=0.2)
+                    .reorder(PRE_REORDER_NUM_NEIGHBOURS)
+                    .build()
+                )
         with gt_path.open() as f:
             self.tokens = f.read().splitlines()
             self.tokens = np.array(regularize(self.tokens))
@@ -327,16 +339,6 @@ class Glove(TextVectorEngine):
         tokens = np.array(standardize_length(self.tokenize(phrase)))
         return self.vectors[tokens].mean(axis=1)
 
-    def calculate_similarity_to(self, phrases: tp.Sequence[str]) -> npt.NDArray:
-        assert self.use_self_similarity
-        tokens = np.array(
-            standardize_length(self.tokenize(phrases))
-        )  # (num_words, max_len)
-        similarity_matrix = self.self_similarity_matrix[tokens].mean(
-            axis=1
-        )  # (num_words, vocab_size)
-        return similarity_matrix
-
 
 def batched_norm(vec: np.ndarray) -> np.ndarray:
     """Normalize a batch of vectors
@@ -368,6 +370,8 @@ class GloveGuesser:
         self.word_suggestion_strategy_lookup = {
             "mean": self.generate_word_suggestions_mean,
             "minimax": self.generate_word_suggestions_minimax,
+            "approx_mean": self.generate_word_suggestions_mean_approx,
+            "approx_minimax": self.generate_word_suggestions_minimax_approx,
         }
         self.guess_strategy_lookup: GuessStrategyLookup = {
             "greedy": self.guess_greedy,
@@ -394,13 +398,10 @@ class GloveGuesser:
         return chosen_words, similarity_scores
 
     def get_similarity_scores_mean(self, words: tp.List[str]) -> npt.NDArray:
-        if self.glove.use_self_similarity:
-            similarity_scores = self.glove.calculate_similarity_to(words).mean(0)
-        else:
-        word_vector = self.glove.vectorize(" ".join(words)).mean(0)[None, :]
-            similarity_scores = self.glove.calculate_similarity_to_word_vector(
-                word_vector
-            )[0]
+        word_vector = self.glove.vectorize(words).mean(0)[None, :]
+        similarity_scores = self.glove.calculate_similarity_to_word_vector(word_vector)[
+            0
+        ]
         return similarity_scores
 
     def generate_word_suggestions_mean(
@@ -411,13 +412,10 @@ class GloveGuesser:
         )
 
     def get_similarity_scores_minimax(self, words: tp.List[str]) -> npt.NDArray:
-        if self.glove.use_self_similarity:
-            similarity_scores = self.glove.calculate_similarity_to(words).min(0)
-        else:
-        word_vector = self.glove.vectorize(" ".join(words))
-            similarity_scores = self.glove.calculate_similarity_to_word_vector(
-                word_vector
-            ).min(axis=0)
+        word_vector = self.glove.vectorize(words)
+        similarity_scores = self.glove.calculate_similarity_to_word_vector(
+            word_vector
+        ).min(axis=0)
         return similarity_scores
 
     def generate_word_suggestions_minimax(
@@ -426,6 +424,36 @@ class GloveGuesser:
         return self.generate_word_suggestions_abstract(
             self.get_similarity_scores_minimax, words, limit
         )
+
+    def generate_word_suggestions_mean_approx(
+        self, words: tp.List[str], limit: int = 10
+    ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
+        assert self.glove.normalized and self.glove.use_approximate
+        word_vector = self.glove.vectorize(words).mean(0)
+        chosen_words, similarity_scores = self.glove.searcher.search(
+            word_vector, final_num_neighbors=limit
+        )
+        chosen_words = self.glove.tokens[chosen_words]
+        return chosen_words, similarity_scores
+
+    def generate_word_suggestions_minimax_approx(
+        self, words: tp.List[str], limit: int = 10
+    ) -> tp.Tuple[tp.Sequence[str], tp.Sequence[float]]:
+        assert self.glove.normalized and self.glove.use_approximate
+        word_vectors = self.glove.vectorize(words)
+        chosen_words = np.unique(
+            self.glove.searcher.search_batched(word_vectors, final_num_neighbors=limit)[
+                0
+            ]
+        )
+        similarity_scores = np.min(
+            word_vectors @ self.glove.vectors[chosen_words].T, axis=0
+        )
+        indices = np.argpartition(-similarity_scores, limit)[:limit]
+        chosen_words = chosen_words[indices]
+        chosen_words = self.glove.tokens[chosen_words]
+        similarity_scores = similarity_scores[indices]
+        return chosen_words, similarity_scores
 
     def filter_words(
         self,
