@@ -243,7 +243,6 @@ class CodenamesEnvNoHER(CodenamesEnv):
 
 
 def hacked_action_space():
-    NUM_HINT_CANDIDATES = CANDIDATE_LIMIT * NUM_HINT_STRATEGIES
     assert NUM_HINT_CANDIDATES % 2 == 0
     dim = NUM_WORDS * 2 + NUM_HINT_CANDIDATES
     # int64 for compatibility with
