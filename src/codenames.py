@@ -1,9 +1,10 @@
-import numpy as np
-import pathlib
-import attr
-import typing as tp
-import nptyping as npt
 import abc
+import pathlib
+import typing as tp
+import attrs
+import nptyping as npt
+import numpy as np
+import pandas as pd
 import scann
 from scipy.special import softmax
 
@@ -74,12 +75,27 @@ class WordList:
         for pth in paths:
             path = pathlib.Path(pth)
             with path.open() as f:
-                texts.update(f.read().splitlines())
-        return set(regularize(texts))
+                texts.update(regularize(f.read().splitlines()))
+        return texts
 
 
 def is_superstring_or_substring(word: str, target: str) -> bool:
     return target in word or word in target
+
+
+@attrs.define(auto_attribs=True)
+class Hint:
+    word: str
+    count: tp.Optional[int]
+    team: str
+    num_guessed: int = attrs.field(default=0)
+    num_guessed_correctly: int = attrs.field(default=0)
+
+    
+@attrs.frozen
+class GuessResult:
+    word: str
+    label: str
 
 
 class Board:
@@ -91,6 +107,8 @@ class Board:
         self.words = self.rng.choice(wordlist.words, 25, replace=False)
         self.word2index = {word: i for i, word in enumerate(self.words)}
         self.labels: tp.List[str] = self.rng.permutation(labels)
+        self.hint_history: tp.List[Hint] = []
+        self.guessing_history: tp.List[GuessResult] = []
         self.reset_game()
 
     def is_related_word(self, word: str) -> bool:
@@ -105,14 +123,14 @@ class Board:
             or word not in self.wordlist.allowed
         )
 
-    def batch_is_illegal(self, words: npt.NDArray[str]) -> npt.NDArray[bool]:
+    def batch_is_illegal(self, words: npt.NDArray[npt.Shape["*"], npt.typing_.Str]) -> npt.NDArray[npt.Shape["*"], npt.typing_.Bool]:
         return np.array([self.is_illegal(w) for w in words])
 
     def reset_game(self) -> None:
         self.chosen = np.array([False] * 25)
         self.which_team_guessing = "BLUE"
-        # self.hint_history = []
-        # self.state_history = None
+        self.hint_history = []
+        self.guessing_history = []
 
     def opponent_of(self, team: str):
         assert team in valid_teams
@@ -121,14 +139,30 @@ class Board:
     def end_turn(self):
         self.which_team_guessing = self.opponent_of(self.which_team_guessing)
 
-    def choose_word(self, word: str) -> str:
+    def give_hint(self, hint: Hint):
+        if hint.team != self.which_team_guessing:
+            raise ValueError(f"Hint from wrong team \"{hint.team}\". It is \"{self.which_team_guessing}\"'s turn.")
+        self.hint_history.append(hint)
+
+    def is_chosen_with_index(self, word: str) -> tp.Tuple[bool, int]:
         if word.upper() not in self.words:
             raise KeyError(f"Word '{word}' is not on the board.")
         index = self.word2index[word]
-        if self.chosen[index]:
+        return self.chosen[index], index
+
+    def is_chosen(self, word: str) -> bool:
+        self.is_chosen_with_index(word)[0]
+
+    def choose_word(self, word: str) -> str:
+        if len(self.hint_history) != len(self.guessing_history) + 1:
+            raise ValueError("Must give a hint before guessing!")
+        chosen, index = self.is_chosen_with_index(word)
+        if chosen:
             raise ValueError(f"Word '{word}' has already been chosen!")
         self.chosen[index] = True
-        return self.labels[index]
+        label = self.labels[index]
+        self.guessing_history.append(GuessResult(word, label))
+        return label
 
     def words_that_are_label(self, label):
         return self.words[self.labels == label]
@@ -195,7 +229,7 @@ class Board:
             for label in unique_labels
         }
 
-    def remaining_words(self) -> npt.NDArray[str]:
+    def remaining_words(self) -> npt.NDArray[npt.Shape["*"], npt.typing_.Str]:
         return self.words[~self.chosen]
 
     def remaining_words_for_team(self, team: str) -> int:
@@ -208,7 +242,7 @@ class Board:
             return "THEIRS"
         return label
 
-    def orient_labels_for_team(self, my_team: str) -> npt.NDArray[str]:
+    def orient_labels_for_team(self, my_team: str) -> npt.NDArray[npt.Shape["*"], npt.typing_.Str]:
         opponent_team = self.opponent_of(my_team)
         return np.array(
             [self.orient_label(my_team, opponent_team, label) for label in self.labels]
@@ -250,14 +284,17 @@ class CliView:
     def operative_view(self):
         self.generic_view(self.operative_words_to_display)
 
-
-@attr.s(auto_attribs=True)
-class Hint:
-    word: str
-    count: tp.Optional[int]
-    team: str
-    num_guessed: int = attr.ib(default=0)
-    num_guessed_correctly: int = attr.ib(default=0)
+    def bag_words_team_view(self):
+        words = self.board.bag_state()
+        my_team = self.board.which_team_guessing
+        other_team = "RED" if my_team == "BLUE" else "BLUE"
+        words_oriented_perspective = {
+            "My team": [w.lower() for w in words[my_team]],
+            "Enemy team": [w.lower() for w in words[other_team]],
+            "Neutral": [w.lower() for w in words["BYSTANDER"]],
+            "Death": [w.lower() for w in words["ASSASSIN"]]
+        }
+        return "\n".join([f"{k}: {', '.join(v)}" for k, v in words_oriented_perspective.items()])
 
 
 class TextVectorEngine(metaclass=abc.ABCMeta):
@@ -271,21 +308,23 @@ class TextVectorEngine(metaclass=abc.ABCMeta):
     def tokenize(self, phrase):
         pass
 
+    def vectorize(self, phrase: tp.Union[str, tp.Sequence[str]]) -> npt.NDArray:
+        if isinstance(phrase, str):
+            return self.vectors[self.tokenize(phrase)]
+        tokens = np.array(standardize_length(self.tokenize(phrase)))
+        return self.vectors[tokens].mean(axis=1)
+    
 
-class Glove(TextVectorEngine):
+class NumpyVectorEngine(TextVectorEngine):
     def __init__(
         self,
-        glove_vector_path,
-        glove_tokens_path,
+        vectors: npt.NDArray[npt.Shape["*, *"], npt.typing_.Float],
+        tokens: npt.NDArray[npt.Shape["*"], npt.typing_.Str],
         normalized: bool = False,
         use_approximate: bool = True,
     ):
-        gv_path = pathlib.Path(glove_vector_path)
-        gt_path = pathlib.Path(glove_tokens_path)
-        assert gv_path.exists()
-        assert gt_path.exists()
-        with gv_path.open("rb") as f:
-            self.vectors = np.load(gv_path)
+        self.vectors = vectors
+        self.tokens = tokens
         self.normalized = normalized
         self.use_approximate = use_approximate
         if self.normalized:
@@ -302,9 +341,6 @@ class Glove(TextVectorEngine):
                     .reorder(PRE_REORDER_NUM_NEIGHBOURS)
                     .build()
                 )
-        with gt_path.open() as f:
-            self.tokens = f.read().splitlines()
-            self.tokens = np.array(regularize(self.tokens))
         self.token2id = {t: i for i, t in enumerate(self.tokens)}
 
     def is_valid_token(self, token: str) -> bool:
@@ -333,11 +369,137 @@ class Glove(TextVectorEngine):
         else:
             return batched_cosine_similarity(word_vector, self.vectors)
 
-    def vectorize(self, phrase: tp.Union[str, tp.Sequence[str]]) -> npt.NDArray:
+
+class NumpyVectorEngine(TextVectorEngine):
+    def __init__(
+        self,
+        vectors: npt.NDArray[npt.Shape["*, *"], npt.typing_.Float],
+        tokens: npt.NDArray[npt.Shape["*"], npt.typing_.Str],
+        normalized: bool = False,
+        use_approximate: bool = True,
+    ):
+        self.vectors = vectors
+        self.tokens = tokens
+        self.normalized = normalized
+        self.use_approximate = use_approximate
+        if self.normalized:
+            self.vectors = batched_norm(self.vectors)
+            if self.use_approximate:
+                self.searcher = (
+                    scann.scann_ops_pybind.builder(self.vectors, 20, "dot_product")
+                    .tree(
+                        num_leaves=2000,
+                        num_leaves_to_search=NUM_LEAVES_TO_SEARCH,
+                        training_sample_size=250000,
+                    )
+                    .score_ah(2, anisotropic_quantization_threshold=0.2)
+                    .reorder(PRE_REORDER_NUM_NEIGHBOURS)
+                    .build()
+                )
+        self.token2id = {t: i for i, t in enumerate(self.tokens)}
+
+    def is_valid_token(self, token: str) -> bool:
+        return token.strip().upper() in self.token2id
+
+    def is_tokenizable(self, phrase: str) -> bool:
+        return all(token is not None for token in self.tokenize(phrase))
+
+    def tokenize(self, phrase):
+        """Simple one-word tokenization. Ignores punctuation."""
         if isinstance(phrase, str):
-            return self.vectors[self.tokenize(phrase)]
-        tokens = np.array(standardize_length(self.tokenize(phrase)))
-        return self.vectors[tokens].mean(axis=1)
+            phrase = phrase.strip().upper().split()
+            return [
+                self.token2id[x] if self.is_valid_token(x) else None for x in phrase
+            ]
+        else:
+            phrase = regularize(phrase)
+            return [self.tokenize(token) for token in phrase]
+
+    def calculate_similarity_to_word_vector(
+        self, word_vector: npt.NDArray
+    ) -> npt.NDArray:
+        if self.normalized:
+            # assert np.allclose(word_vector.sum(-1), np.ones(word_vector.shape[0]))
+            return word_vector @ self.vectors.T
+        else:
+            return batched_cosine_similarity(word_vector, self.vectors)
+
+
+class Glove(NumpyVectorEngine):
+
+    def __init__(
+        self,
+        glove_vector_path: PathLike,
+        glove_tokens_path: PathLike,
+        wordlist: tp.Optional[WordList] = None,
+        normalized: bool = False,
+        use_approximate: bool = True,
+    ):
+        gv_path = pathlib.Path(glove_vector_path)
+        gt_path = pathlib.Path(glove_tokens_path)
+        assert gv_path.exists()
+        assert gt_path.exists()
+        with gv_path.open("rb") as f:
+            vectors = np.load(gv_path)
+        with gt_path.open() as f:
+            tokens = f.read().splitlines()
+            tokens = np.array(regularize(tokens))
+
+        if wordlist is not None:
+            allowed_indices = np.array([x in wordlist.allowed for x in tokens])
+            vectors = vectors[allowed_indices]
+            tokens = tokens[allowed_indices]
+
+        super().__init__(vectors, tokens, normalized=normalized, use_approximate=use_approximate)
+
+
+def prefix_to_word_stub(prefix: str):
+    word_stub = prefix.split('/c/en/', 1)[1]
+    word_stub = " ".join(word_stub.upper().split("_"))
+    return word_stub
+
+
+def is_valid_prefix(prefix: str, wordlist: WordList) -> bool:
+    if not prefix.startswith('/c/en/'):
+        return False
+    if prefix.startswith('/c/en/#'):
+        return False
+    word_stub = prefix_to_word_stub(prefix)
+    return word_stub in wordlist.allowed
+
+
+class ConceptNet(NumpyVectorEngine):
+
+    def __init__(
+        self,
+        conceptnet_hd5_path: PathLike,
+        wordlist: WordList,
+        normalized: bool = False,
+        use_approximate: bool = True,
+    ):
+        cn_path = pathlib.Path(conceptnet_hd5_path)
+        assert cn_path.is_file()
+        conceptnet = pd.read_hdf(cn_path)
+
+        valid_prefixes = [p for p in conceptnet.index if is_valid_prefix(p, wordlist)]
+        vectors = conceptnet.loc[valid_prefixes].values
+        tokens = np.array([prefix_to_word_stub(p) for p in valid_prefixes if is_valid_prefix(p, wordlist)])
+
+        super().__init__(vectors, tokens, normalized=normalized, use_approximate=use_approximate)
+
+    def tokenize(self, phrase):
+        """Basic phrase tokenization. Assumes everything is part of the same phrase. Ignores punctuation."""
+        if isinstance(phrase, str):
+            phrase = phrase.strip().upper()
+            if self.is_valid_token(phrase):
+                return [self.token2id[phrase]]
+            phrase_arr = phrase.split()
+            return [
+                self.token2id[x] if self.is_valid_token(x) else None for x in phrase_arr
+            ]
+        else:
+            phrase = regularize(phrase)
+            return [self.tokenize(token) for token in phrase]
 
 
 def batched_norm(vec: np.ndarray) -> np.ndarray:
@@ -363,10 +525,11 @@ GuessStrategyLookup = tp.Dict[
 
 
 class GloveGuesser:
-    def __init__(self, glove: Glove, board: Board, limit: int = 10):
+    def __init__(self, glove: Glove, board: Board, limit: int = 10, p_threshold: float = 0.05):
         self.glove = glove
         self.board = board
         self.limit = limit
+        self.p_threshold = p_threshold
         self.word_suggestion_strategy_lookup = {
             "mean": self.generate_word_suggestions_mean,
             "minimax": self.generate_word_suggestions_minimax,
@@ -457,8 +620,8 @@ class GloveGuesser:
 
     def filter_words(
         self,
-        chosen_words: npt.NDArray[str],
-        similarity_scores: npt.NDArray[float],
+        chosen_words: npt.NDArray[npt.Shape["*"], npt.typing_.Str],
+        similarity_scores: npt.NDArray[npt.Shape["*"], npt.typing_.Float],
         similarity_threshold=0.0,
     ):
         words_to_filter = self.indices_illegal_words(chosen_words) | (
@@ -468,8 +631,8 @@ class GloveGuesser:
 
     def re_rank(
         self,
-        chosen_words: npt.NDArray[str],
-        similarity_scores: npt.NDArray[float],
+        chosen_words: npt.NDArray[npt.Shape["*"], npt.typing_.Str],
+        similarity_scores: npt.NDArray[npt.Shape["*"], npt.typing_.Float],
         limit: int,
     ):
         indices = np.argsort(-similarity_scores)
@@ -549,4 +712,7 @@ class GloveGuesser:
             word_vector, remaining_word_vectors
         )[0]
         guess_with_strategy = self.guess_strategy_lookup[strategy]
-        return guess_with_strategy(remaining_words, similarity_scores, limit)
+
+        chosen_words, similarity_scores = guess_with_strategy(remaining_words, similarity_scores, limit)
+        indices_above_p_threshold = similarity_scores >= p_threshold
+        return chosen_words[indices_above_p_threshold], similarity_scores[indices_above_p_threshold]

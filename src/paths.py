@@ -19,9 +19,10 @@ WORDLIST_ENG_PATH = BASE_PATH.joinpath("wordlist-eng.txt")
 
 # Word vectors
 GLOVE_6B_300D_PATH = GlovePath(
-    BASE_PATH.parent.joinpath("codenames/dataset/glove.6B.300d.npy"),
-    BASE_PATH.parent.joinpath("codenames/dataset/words"),
+    BASE_PATH.joinpath("../codenames/dataset/glove.6B.300d.npy"),
+    BASE_PATH.joinpath("../codenames/dataset/words"),
 )
+CONCEPTNET_PATH = BASE_PATH.joinpath("../conceptnet/mini.h5")
 
 # Allowed
 GOOGLE_10K_ENG_PATH = BASE_PATH.joinpath("google-10000-english-no-swears.txt")

@@ -9,5 +9,7 @@ wordlist = codenames.WordList(
 )
 board = codenames.Board(wordlist)
 view = codenames.CliView(board)
-glove = codenames.Glove(*paths.GLOVE_6B_300D_PATH.paths, normalized=True)
+glove = codenames.Glove(*paths.GLOVE_6B_300D_PATH.paths, wordlist=wordlist, normalized=True)
+conceptnet = codenames.ConceptNet(paths.CONCEPTNET_PATH, wordlist=wordlist, normalized=True)
 guesser = codenames.GloveGuesser(glove, board)
+cn_guesser = codenames.GloveGuesser(conceptnet, board)

@@ -169,8 +169,8 @@ class CodenamesEnv(gym.GoalEnv):
         targets = self.board.words[words_to_choose.astype(bool)]
         candidate = self.generate_candidates(targets, CANDIDATE_LIMIT)[candidate_index]
         hint = cn.Hint(candidate, len(targets), self.team)
+        self.board.give_hint(hint)
         guesses, _ = self.guesser.guess(hint)
-        self.hints.append(hint)
         self.guessed_words.append([])
         for guess in guesses:
             label = self.board.choose_word(guess)
@@ -201,7 +201,6 @@ class CodenamesEnv(gym.GoalEnv):
         self.team_labels = self.board.orient_labels_for_team(self.team)
         self.team_indices = cn.find_x_in_y(cn.bot_labels, self.team_labels)
         self.guessed_words = []
-        self.hints = []
 
     def reset(self):
         # Reset the state of the environment to an initial state
