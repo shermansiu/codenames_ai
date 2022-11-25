@@ -21,7 +21,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 from stable_baselines3.common import env_checker
 
-env_checker.check_env(GridTestEnv(length=5))
+env_checker.check_env(GridTestOneMoveEnv(length=5))
 
 from stable_baselines3.common.logger import configure
 import pathlib
@@ -34,7 +34,7 @@ new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 def make_env(env_name):
     log_dir = pathlib.Path(tmp_path).joinpath(env_name)
     log_dir.mkdir(parents=True, exist_ok=True)
-    return Monitor(GridTestEnv(length=5), str(log_dir))
+    return Monitor(GridTestOneMoveEnv(length=5), str(log_dir))
 
 
 log_freq = 25000
