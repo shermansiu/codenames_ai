@@ -5,7 +5,7 @@ import numpy as np
 import codenames as cn
 
 
-NUM_WORDS = 25
+NUM_WORDS = 4
 NUM_HINT_STRATEGIES = 1
 NUM_EMBEDDING_TYPES = 1
 NUM_LABELS = 4
@@ -206,6 +206,10 @@ class CodenamesEnv(gym.GoalEnv):
         # Reset the state of the environment to an initial state
         self.start_new_game()
         return self.current_goal_observation()
+
+    @property
+    def hints(self):
+        return self.board.hint_history
 
     def render(self, mode="human", close=False):
         # Render the environment to the screen

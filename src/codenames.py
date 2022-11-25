@@ -5,8 +5,8 @@ import attrs
 import nptyping as npt
 import numpy as np
 import pandas as pd
-import scann
 from scipy.special import softmax
+import scann
 
 
 if tp.TYPE_CHECKING:
@@ -17,9 +17,15 @@ PathLike = tp.Union[str, "os.PathLike[str]"]
 
 NUM_LEAVES_TO_SEARCH = 300
 PRE_REORDER_NUM_NEIGHBOURS = 250
+BOARD_WIDTH = 2
+BOARD_HEIGHT = 2
+NUM_WORDS = BOARD_WIDTH * BOARD_HEIGHT
+NUM_BLUE = 1  # 9
+NUM_RED = 1  # 8
+NUM_BYSTANDER = 1  # 7
 
 default_rng = np.random.default_rng()
-labels = ["BLUE"] * 9 + ["RED"] * 8 + ["BYSTANDER"] * 7 + ["ASSASSIN"]
+labels = ["BLUE"] * NUM_BLUE + ["RED"] * NUM_RED + ["BYSTANDER"] * NUM_BYSTANDER + ["ASSASSIN"]
 bot_labels = np.array(["OURS", "THEIRS", "BYSTANDER", "ASSASSIN"])
 valid_teams = {"BLUE", "RED"}
 unique_labels = np.unique(labels).tolist()
@@ -104,7 +110,7 @@ class Board:
         if rng is None:
             rng = default_rng
         self.rng = np.random.default_rng(rng)
-        self.words = self.rng.choice(wordlist.words, 25, replace=False)
+        self.words = self.rng.choice(wordlist.words, NUM_WORDS, replace=False)
         self.word2index = {word: i for i, word in enumerate(self.words)}
         self.labels: tp.List[str] = self.rng.permutation(labels)
         self.hint_history: tp.List[Hint] = []
@@ -127,7 +133,7 @@ class Board:
         return np.array([self.is_illegal(w) for w in words])
 
     def reset_game(self) -> None:
-        self.chosen = np.array([False] * 25)
+        self.chosen = np.array([False] * NUM_WORDS)
         self.which_team_guessing = "BLUE"
         self.hint_history = []
         self.guessing_history = []
@@ -154,8 +160,8 @@ class Board:
         self.is_chosen_with_index(word)[0]
 
     def choose_word(self, word: str) -> str:
-        if len(self.hint_history) != len(self.guessing_history) + 1:
-            raise ValueError("Must give a hint before guessing!")
+        # if len(self.hint_history) != len(self.guessing_history) + 1:
+        #     raise ValueError("Must give a hint before guessing!")
         chosen, index = self.is_chosen_with_index(word)
         if chosen:
             raise ValueError(f"Word '{word}' has already been chosen!")
@@ -211,9 +217,9 @@ class Board:
         Thus, 0-8 blue, 0-7 red and 1-6 bystander words are chosen.
         """
         self.reset_game()
-        num_blue = self.rng.integers(0, 9)
-        num_red = self.rng.integers(0, 8)
-        num_bystanders = self.rng.integers(0, 7)
+        num_blue = self.rng.integers(0, NUM_BLUE)
+        num_red = self.rng.integers(0, NUM_RED)
+        num_bystanders = self.rng.integers(0, NUM_BYSTANDER)
         chosen_blue = self.rng.choice(self.blue_indices, num_blue, replace=False)
         chosen_red = self.rng.choice(self.red_indices, num_red, replace=False)
         chosen_bystanders = self.rng.choice(
@@ -275,7 +281,7 @@ class CliView:
 
     def generic_view(self, words_to_display):
         words = words_to_display()
-        print(np.array(words).reshape(5, 5))
+        print(np.array(words).reshape(BOARD_WIDTH, BOARD_HEIGHT))
         print(f"It is {self.board.which_team_guessing}'s turn.")
 
     def spymaster_view(self):
@@ -399,7 +405,7 @@ class NumpyVectorEngine(TextVectorEngine):
         self.token2id = {t: i for i, t in enumerate(self.tokens)}
 
     def is_valid_token(self, token: str) -> bool:
-        return token.strip().upper() in self.token2id
+        return token.strip().upper() in self.token2id:
 
     def is_tokenizable(self, phrase: str) -> bool:
         return all(token is not None for token in self.tokenize(phrase))
@@ -714,5 +720,5 @@ class GloveGuesser:
         guess_with_strategy = self.guess_strategy_lookup[strategy]
 
         chosen_words, similarity_scores = guess_with_strategy(remaining_words, similarity_scores, limit)
-        indices_above_p_threshold = similarity_scores >= p_threshold
+        indices_above_p_threshold = similarity_scores >= self.p_threshold
         return chosen_words[indices_above_p_threshold], similarity_scores[indices_above_p_threshold]
