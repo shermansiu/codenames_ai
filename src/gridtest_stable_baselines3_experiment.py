@@ -26,7 +26,8 @@ env_checker.check_env(GridTestEnv())
 from stable_baselines3.common.logger import configure
 import pathlib
 
-tmp_path = "/mnt/ubuntu_data_hdd/school/masters/uwaterloo/1b/cs885/project/codenames/codenames_ai/logs/gridtest/sb3_log/"
+CODENAMES_DIR = pathlib.Path(__file__).resolve().parent.parent
+tmp_path = str(CODENAMES_DIR.joinpath("logs/gridtest/sb3_log/_"))[:-1]
 # set up logger
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
