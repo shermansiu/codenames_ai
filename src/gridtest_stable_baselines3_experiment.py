@@ -26,8 +26,10 @@ env_checker.check_env(GridTestEnv())
 from stable_baselines3.common.logger import configure
 import pathlib
 
+EXPERIMENT_NAME = "gridtest"
+EXPERIMENT_DISPLAY_NAME = "Gridtest - Original"
 CODENAMES_DIR = pathlib.Path(__file__).resolve().parent.parent
-tmp_path = str(CODENAMES_DIR.joinpath("logs/gridtest/sb3_log/_"))[:-1]
+tmp_path = str(CODENAMES_DIR.joinpath(f"logs/{EXPERIMENT_NAME}/sb3_log/_"))[:-1]
 # set up logger
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
@@ -236,11 +238,21 @@ from stable_baselines3.common.monitor import load_results
 from stable_baselines3.common import results_plotter
 
 
-# Helper from the library
-results_plotter.plot_results(
-    [get_path_for("ppo"), get_path_for("a2c")],
-    None, results_plotter.X_TIMESTEPS, "Gridtest - Original"
-)
-plt.legend(loc="best", labels=["PPO", "avg(PPO)", "A2C", "avg(A2C)"])
-plt.grid()
-plt.savefig("gridtest_sb3.png")
+def plot_gridtest_experiment(expt_name, expt_display_name, ylim=None, should_save=True):
+    logs_path = CODENAMES_DIR.joinpath(f"logs/{expt_name}/sb3_log")
+    ppo_path = str(logs_path.joinpath("ppo"))
+    a2c_path = str(logs_path.joinpath("a2c"))
+
+    results_plotter.plot_results(
+        [ppo_path, a2c_path],
+        None, results_plotter.X_EPISODES, expt_display_name
+    )
+    plt.legend(loc="best", labels=["PPO", "avg(PPO)", "A2C", "avg(A2C)"])
+    plt.grid()
+    if ylim is not None:
+        plt.ylim(ylim)
+    if should_save:
+        plt.savefig(f"{expt_name}_sb3.png")
+
+
+plot_gridtest_experiment(EXPERIMENT_NAME, EXPERIMENT_DISPLAY_NAME)
