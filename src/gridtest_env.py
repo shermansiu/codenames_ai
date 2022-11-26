@@ -5,7 +5,7 @@ import numpy as np
 
 
 class GridTestEnv(gym.Env):
-    """Codenames environment for gym."""
+    """Grid test environment for gym."""
 
     environment_name = "GridTest v0.0.1"
     metadata = {"render.modes": ["human"]}
@@ -46,6 +46,7 @@ class GridTestEnv(gym.Env):
         return [seed_int]
 
     def start_new_game(self):
+        self.current_step = 0
         self.correct = self.np_random.integers(self.size)
         self.board = np.zeros(self.size, dtype=np.int32)
         self.board[self.correct] = 1
@@ -124,6 +125,8 @@ class WhackAMoleEnv(gym.Env):
         self.step_reward_if_win = 0
         self.step_reward_if_not_end = -1
         self.reward_range = (-1, 0)
+        self.current_step = 0
+        self.max_steps = max_steps if max_steps is not None else 99
         self.id = "GridTest"
         self.seed(seed)
         self.start_new_game()
