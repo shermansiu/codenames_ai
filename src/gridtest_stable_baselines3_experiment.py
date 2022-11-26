@@ -239,7 +239,7 @@ from stable_baselines3.common import results_plotter
 # Helper from the library
 results_plotter.plot_results(
     [get_path_for("ppo"), get_path_for("a2c")],
-    None2, results_plotter.X_TIMESTEPS, "Gridtest - Original"
+    None, results_plotter.X_TIMESTEPS, "Gridtest - Original"
 )
 plt.legend(loc="best", labels=["PPO", "avg(PPO)", "A2C", "avg(A2C)"])
 plt.grid()
