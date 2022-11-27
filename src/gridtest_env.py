@@ -127,7 +127,7 @@ class WhackAMoleEnv(gym.Env):
         self.reward_range = (-1, 0)
         self.current_step = 0
         self.max_steps = max_steps if max_steps is not None else 99
-        self.id = "GridTest"
+        self.id = "WhackAMole"
         self.seed(seed)
         self.start_new_game()
 
@@ -147,6 +147,7 @@ class WhackAMoleEnv(gym.Env):
         return [seed_int]
 
     def start_new_game(self):
+        self.current_step = 0
         self.correct = self.np_random.integers(self.size)
         self.board = np.zeros(self.size, dtype=np.int32)
         self.board[self.correct] = 1
@@ -160,7 +161,7 @@ class WhackAMoleEnv(gym.Env):
         return np.clip(self.board.reshape(-1, self.length, 1)*128+128, 0, 255).astype(np.uint8)
 
     def is_done(self):
-        return bool(self.board[self.correct] == 0)
+        return self.current_step >= self.max_steps or bool(self.board[self.correct] == 0)
 
     def compute_reward(self):
         if self.is_done():
@@ -168,6 +169,7 @@ class WhackAMoleEnv(gym.Env):
         return self.step_reward_if_not_end
 
     def step(self, action):
+        self.current_step += 1
         if not self.is_done():
             self.board[action] = max(self.board[action], 0) - 1
         return (

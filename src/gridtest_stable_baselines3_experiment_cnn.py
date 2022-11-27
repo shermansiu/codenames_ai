@@ -62,8 +62,8 @@ models = dict(
     #     ),
     #     buffer_size=int(1e6)
     # ),
-    ppo = PPO('CnnPolicy', make_env("ppo"), verbose=1, n_steps=25, n_epochs=80),
-    a2c = A2C('CnnPolicy', make_env("a2c"), verbose=1, n_steps=25)
+    ppo = PPO('CnnPolicy', make_env("ppo"), verbose=1, n_steps=100, n_epochs=80),
+    a2c = A2C('CnnPolicy', make_env("a2c"), verbose=1, n_steps=100)
 )
 
 from tqdm.auto import tqdm
@@ -164,7 +164,7 @@ class Run:
             model.learn(total_timesteps=total_timesteps, log_interval=log_interval, callback=CallbackList([progress_callback, self.save_callback]))
         # Save the agent
         print("Saving...")
-        model.save(f"{name}_gridtest_v0.0.1_end")
+        model.save(f"{EXPERIMENT_NAME}_{name}_gridtest_v0.0.1_end.chkpt")
         # Evaluate the trained agent
         print("Evaluating...")
         if mode == "self_sim":
