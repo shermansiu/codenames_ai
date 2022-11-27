@@ -64,11 +64,10 @@ class CodenamesEnv(gym.GoalEnv):
         )
         self.glove = glove
         self.wordlist = wordlist
-        self.step_reward_if_lose = -25
+        self.step_reward_if_lose = -NUM_WORDS
         self.step_reward_if_win = 0
         self.step_reward_if_not_end = -1
         self.reward_range = (-float("inf"), self.step_reward_if_not_end)
-        self.reward_threshold = -4
         self.trials = 100
         self.max_episode_steps = -self.step_reward_if_lose
         self.id = "Codenames"
