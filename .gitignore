@@ -137,3 +137,5 @@ dmypy.json
 *.zip
 
 *.chkpt
+
+/logs/*
