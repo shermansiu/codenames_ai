@@ -1,3 +1,4 @@
+import collections
 import typing as tp
 import gym
 from gym import spaces
@@ -91,6 +92,14 @@ class GridTestEnv(gym.Env):
         )
 
 
+class GridTestLinearRewardEnv(GridTestEnv):
+
+    def compute_reward(self):
+        if self.is_done():
+            return self.step_reward_if_win
+        return -self.current_step
+
+
 class GridTestOneMoveEnv(GridTestEnv):
     
     def start_new_game(self):
@@ -102,6 +111,30 @@ class GridTestOneMoveEnv(GridTestEnv):
 
     def step(self, action):
         self.has_moved = True
+        return super().step(action)
+
+    
+class GridTestStackedEnv(GridTestEnv):
+
+    def __init__(
+        self, *args, num_frames: int = 4, **kwargs
+    ):
+        self.num_frames = num_frames
+        super().__init__(*args, **kwargs)
+        observation_shape = (self.num_frames, self.length, self.length, 1)
+        self.observation_space = spaces.Box(
+            low=0, high=255, shape=observation_shape, dtype=np.uint8
+        )
+
+    def start_new_game(self):
+        super().start_new_game()
+        self.frames = collections.deque([np.full((self.length, self.length, 1), 128, dtype=np.uint8) for _ in range(self.num_frames)], maxlen=self.num_frames)
+
+    def current_observation(self):
+        return np.stack(self.frames)
+
+    def step(self, action):
+        self.frames.append(super().current_observation())
         return super().step(action)
 
 
