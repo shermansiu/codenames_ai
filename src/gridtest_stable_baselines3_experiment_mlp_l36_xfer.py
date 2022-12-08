@@ -31,7 +31,7 @@ EXPERIMENT_DISPLAY_NAME = "Gridtest - Transfer from One move - MLP - Length 36"
 LOAD_EXPERIMENT_NAME = "gridtest_onemove_mlp_l36"
 CODENAMES_DIR = pathlib.Path(__file__).resolve().parent.parent
 tmp_path = str(CODENAMES_DIR.joinpath(f"logs/{EXPERIMENT_NAME}/sb3_log/_"))[:-1]
-load_dir = str(CODENAMES_DIR.joinpath(f"{LOAD_EXPERIMENT_NAME}_{{name}}_gridtest_v0.0.1_end.chkpt"))
+load_dir = str(CODENAMES_DIR.joinpath(f"src/{LOAD_EXPERIMENT_NAME}_{{name}}_gridtest_v0.0.1_end.chkpt"))
 # set up logger
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
