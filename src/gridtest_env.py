@@ -60,17 +60,20 @@ class GridTestEnv(gym.Env):
     def current_observation(self):
         return np.clip(self.board.reshape(-1, self.length, 1)*128+128, 0, 255).astype(np.uint8)
 
+    def is_correct(self):
+        return bool(self.board[self.correct] == 0)
+
     def is_done(self):
-        return self.current_step >= self.max_steps or bool(self.board[self.correct] == 0)
+        return self.current_step >= self.max_steps or self.is_correct()
 
     def compute_reward(self):
-        if self.is_done():
+        if self.is_correct():
             return self.step_reward_if_win
         return self.step_reward_if_not_end
 
     def step(self, action):
         self.current_step += 1
-        if not self.is_done():
+        if not self.is_correct():
             self.board[action] = max(self.board[action], 0) - 1
         return (
             self.current_observation(),
