@@ -66,8 +66,8 @@ models = dict(
     # ),
     # ppo = PPO('MlpPolicy', make_env("ppo"), verbose=1, n_steps=25, n_epochs=80),
     # a2c = A2C('MlpPolicy', make_env("a2c"), verbose=1, n_steps=25)
-    ppo = PPO(load_dir.format(name="ppo"), make_env("ppo"), verbose=1, n_steps=25, n_epochs=80),
-    a2c = A2C(load_dir.format(name="a2c"), make_env("a2c"), verbose=1, n_steps=25)
+    ppo = PPO.load(load_dir.format(name="ppo"), make_env("ppo"), verbose=1, n_steps=25, n_epochs=80),
+    a2c = A2C.load(load_dir.format(name="a2c"), make_env("a2c"), verbose=1, n_steps=25)
 )
 
 # for name, model in models.items():
