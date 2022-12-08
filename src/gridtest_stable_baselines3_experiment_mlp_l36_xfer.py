@@ -171,7 +171,7 @@ class Run:
             model.learn(total_timesteps=total_timesteps, log_interval=log_interval, callback=CallbackList([progress_callback, self.save_callback]))
         # Save the agent
         print("Saving...")
-        model.save(f"{EXPERIMENT_NAME}_{name}_gridtest_v0.0.1_end.chkpt")
+        model.save(f"{EXPERIMENT_NAME}_{name}_gridtest_v0.0.1_end.chkpt.zip")
         # Evaluate the trained agent
         print("Evaluating...")
         if mode == "self_sim":
