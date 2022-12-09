@@ -241,13 +241,12 @@ from stable_baselines3.common import results_plotter
 def plot_gridtest_experiment(expt_name, expt_display_name, ylim=None, should_save=True):
     logs_path = CODENAMES_DIR.joinpath(f"logs/{expt_name}/sb3_log")
     ppo_path = str(logs_path.joinpath("ppo"))
-    a2c_path = str(logs_path.joinpath("a2c"))
 
     results_plotter.plot_results(
         [ppo_path, a2c_path],
         None, results_plotter.X_EPISODES, expt_display_name
     )
-    plt.legend(loc="best", labels=["PPO", "avg(PPO)", "A2C", "avg(A2C)"])
+    plt.legend(loc="best", labels=["PPO", "avg(PPO)"])
     plt.grid()
     if ylim is not None:
         plt.ylim(ylim)
