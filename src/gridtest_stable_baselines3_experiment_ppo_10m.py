@@ -6,6 +6,7 @@ from scipy.special import softmax
 import pandas as pd
 import os
 from gridtest_env import *
+from plot_utils import *
 import stable_baselines3
 from stable_baselines3.common import env_checker
 from stable_baselines3 import DQN, SAC, PPO, A2C, HerReplayBuffer
@@ -234,24 +235,4 @@ class PlotHack:
                                         x_max=self.config.num_episodes_to_run * 1.02, label="Target \n score")
 
 
-from stable_baselines3.common.monitor import load_results
-from stable_baselines3.common import results_plotter
-
-
-def plot_gridtest_experiment(expt_name, expt_display_name, ylim=None, should_save=True):
-    logs_path = CODENAMES_DIR.joinpath(f"logs/{expt_name}/sb3_log")
-    ppo_path = str(logs_path.joinpath("ppo"))
-
-    results_plotter.plot_results(
-        [ppo_path, a2c_path],
-        None, results_plotter.X_EPISODES, expt_display_name
-    )
-    plt.legend(loc="best", labels=["PPO", "avg(PPO)"])
-    plt.grid()
-    if ylim is not None:
-        plt.ylim(ylim)
-    if should_save:
-        plt.savefig(f"{expt_name}_sb3.png")
-
-
-plot_gridtest_experiment(EXPERIMENT_NAME, EXPERIMENT_DISPLAY_NAME)
+plot_gridtest_experiment(EXPERIMENT_NAME, EXPERIMENT_DISPLAY_NAME, algorithms=("PPO",))
