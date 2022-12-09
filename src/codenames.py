@@ -405,7 +405,7 @@ class NumpyVectorEngine(TextVectorEngine):
         self.token2id = {t: i for i, t in enumerate(self.tokens)}
 
     def is_valid_token(self, token: str) -> bool:
-        return token.strip().upper() in self.token2id:
+        return token.strip().upper() in self.token2id
 
     def is_tokenizable(self, phrase: str) -> bool:
         return all(token is not None for token in self.tokenize(phrase))
