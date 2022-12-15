@@ -134,7 +134,7 @@ class CodenamesEnv(gym.GoalEnv):
                 ]
             )
             return all_candidates
-        return self.np_random.choice(self.board.words, limit)
+        return np.array(["SOMETHING"] * limit)
 
     def _is_done(self):
         return (
