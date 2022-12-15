@@ -135,6 +135,8 @@ dmypy.json
 
 *.h5
 *.zip
+*.npy
+glove*.txt
 
 *.chkpt
 
