@@ -20,7 +20,7 @@ WORDLIST_ENG_PATH = BASE_PATH.joinpath("wordlist-eng.txt")
 # Word vectors
 GLOVE_6B_300D_PATH = GlovePath(
     BASE_PATH.joinpath("embeddings/glove.6B.300d.npy"),
-    BASE_PATH.joinpath("embeddings/glove.6B.300d.txt"),
+    BASE_PATH.joinpath("embeddings/glove.6B.300d_vocab.txt"),
 )
 CONCEPTNET_PATH = BASE_PATH.joinpath("embeddings/conceptnet/mini.h5")
 
