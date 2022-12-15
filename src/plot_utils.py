@@ -1,9 +1,14 @@
+import itertools
 import pathlib
 from stable_baselines3.common import results_plotter
 import matplotlib.pyplot as plt
 
 
 CODENAMES_AI_PATH = pathlib.Path().resolve().parent
+
+
+def flatten(array):
+    return list(itertools.chain.from_iterable(array))
 
 
 def plot_gridtest_experiment(expt_name, expt_display_name, ylim=None, should_save=True, algorithms=None):
