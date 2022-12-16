@@ -54,8 +54,8 @@ def make_env_discrete(env_name):
     return Monitor(CodenamesEnvHackDiscrete(glove, wordlist), str(log_dir))
 
 
-log_freq = 25000
-num_train_steps = 1000000
+log_freq = 25_000
+num_train_steps = 100_000
 
 
 n_sampled_goal = 4
