@@ -46,7 +46,7 @@ new_logger_discrete = configure(tmp_path_discrete, ["stdout", "csv", "tensorboar
 def make_env(env_name):
     log_dir = pathlib.Path(tmp_path).joinpath(env_name)
     log_dir.mkdir(parents=True, exist_ok=True)
-    return Monitor(CodenamesEnvHack(), str(log_dir))
+    return Monitor(CodenamesEnvHack(glove, wordlist), str(log_dir))
 
 
 def make_env_discrete(env_name):
