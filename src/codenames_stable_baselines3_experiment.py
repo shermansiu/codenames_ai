@@ -38,7 +38,7 @@ CODENAMES_DIR = pathlib.Path(__file__).resolve().parent.parent
 tmp_path = str(CODENAMES_DIR.joinpath(f"logs/{EXPERIMENT_NAME}/sb3_log/_"))[:-1]
 # set up logger
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
-tmp_path_discrete = str(CODENAMES_DIR.joinpath("logs/{EXPERIMENT_NAME}/sb3_log_discrete/_"))
+tmp_path_discrete = str(CODENAMES_DIR.joinpath(f"logs/{EXPERIMENT_NAME}/sb3_log_discrete/_"))[:-1]
 # set up logger
 new_logger_discrete = configure(tmp_path_discrete, ["stdout", "csv", "tensorboard"])
 
