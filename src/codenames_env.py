@@ -72,6 +72,8 @@ class CodenamesEnv(gym.GoalEnv):
         self.max_episode_steps = -self.step_reward_if_lose
         self.id = "Codenames"
         self.seed(seed)
+        self.current_step = 0
+        self.max_steps = NUM_WORDS
         self.start_new_game()
 
     def seed(self, seed: tp.Optional[int] = None) -> tp.List[int]:
@@ -144,7 +146,7 @@ class CodenamesEnv(gym.GoalEnv):
         )
 
     def is_done(self, achieved_goal):
-        return (achieved_goal[0] == 0 or achieved_goal[1].sum() < 2).item()
+        return (achieved_goal[0] == 0 or achieved_goal[1].sum() < 2).item() or self.current_step > self.max_steps
 
     def _compute_reward(self):
         if self.board.remaining_words_for_team(self.team) == 0:
@@ -179,6 +181,7 @@ class CodenamesEnv(gym.GoalEnv):
                 break
             hint.num_guessed_correctly += 1
         achieved_goal = self.achieved_goal()
+        self.current_step += 1
         return (
             self.current_goal_observation(),
             self.compute_reward(achieved_goal, self.desired_goal(), dict()),
@@ -200,6 +203,7 @@ class CodenamesEnv(gym.GoalEnv):
         self.team_labels = self.board.orient_labels_for_team(self.team)
         self.team_indices = cn.find_x_in_y(cn.bot_labels, self.team_labels)
         self.guessed_words = []
+        self.current_step = 0
 
     def reset(self):
         # Reset the state of the environment to an initial state
@@ -329,7 +333,7 @@ class CodenamesEnvHack(CodenamesEnv):
 
     def is_done(self, achieved_goal):
         achieved_goal = achieved_goal[0][:3]
-        return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item()
+        return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item() or self.current_step > self.max_steps
 
     def compute_reward(self, achieved_goal, desired_goal, info: dict):
         if len(achieved_goal.shape) == 3:
@@ -428,7 +432,7 @@ class CodenamesEnvHackDiscrete(CodenamesEnv):
 
     def is_done(self, achieved_goal):
         achieved_goal = achieved_goal[0][:3]
-        return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item()
+        return (achieved_goal[0] == 0 or achieved_goal[1:].sum() < 2).item() or self.current_step > self.max_steps
 
     def compute_reward(self, achieved_goal, desired_goal, info: dict):
         if len(achieved_goal.shape) == 3:
