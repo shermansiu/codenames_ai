@@ -5,7 +5,7 @@ import numpy as np
 import codenames as cn
 
 
-NUM_WORDS = 4
+NUM_WORDS = 25
 NUM_HINT_STRATEGIES = 1
 NUM_EMBEDDING_TYPES = 1
 NUM_LABELS = 4

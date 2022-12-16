@@ -17,12 +17,12 @@ PathLike = tp.Union[str, "os.PathLike[str]"]
 
 NUM_LEAVES_TO_SEARCH = 300
 PRE_REORDER_NUM_NEIGHBOURS = 250
-BOARD_WIDTH = 2
-BOARD_HEIGHT = 2
+BOARD_WIDTH = 5
+BOARD_HEIGHT = 5
 NUM_WORDS = BOARD_WIDTH * BOARD_HEIGHT
-NUM_BLUE = 1  # 9
-NUM_RED = 1  # 8
-NUM_BYSTANDER = 1  # 7
+NUM_BLUE = 9  # 9
+NUM_RED = 8  # 8
+NUM_BYSTANDER = 7  # 7
 
 default_rng = np.random.default_rng()
 labels = ["BLUE"] * NUM_BLUE + ["RED"] * NUM_RED + ["BYSTANDER"] * NUM_BYSTANDER + ["ASSASSIN"]
